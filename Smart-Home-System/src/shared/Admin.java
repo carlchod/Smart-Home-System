@@ -1,6 +1,6 @@
 package shared;
 
-public abstract class SmartDevice {
+public class Admin {
     // Attribute
     // Konstruktor
     // Methoden
