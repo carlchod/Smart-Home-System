@@ -45,6 +45,20 @@ package "Shared / Model" {
         + addDevice(d: SmartDevice): void
     }
 
+    class Gebaude implements java.io.Serializable {
+        - raeume: HashMap<String, Raum>
+        + getRaeume(): HashMap<String, Raum>
+        + getRaum(name: String): Raum
+        + addRaum(r: Raum): void
+    }
+
+    class Admin implements java.io.Serializable {
+        - benutzername: String
+        - passwortHash: String
+        + login(passwort: String): boolean
+    }
+
+    Gebaude "1" *-- "*" Raum : enthält >
     Raum "1" *-- "*" SmartDevice : enthält >
 }
 
@@ -52,18 +66,18 @@ package "Server-Seite (RMI)" {
     interface java.rmi.Remote
 
     interface SmartHomeService extends java.rmi.Remote {
-        + getRaeume(): HashMap<String, Raum>
+        + getGebaude(): Gebaude
         + getRaum(name: String): Raum
     }
 
     class SmartHomeServer implements SmartHomeService {
-        - raeume: HashMap<String, Raum>
+        - meinGebaude: Gebaude
         + startServer(): void
         + speichereZustand(): void
         + ladeZustand(): void
     }
 
-    SmartHomeServer "1" *-- "*" Raum : verwaltet >
+    SmartHomeServer "1" *-- "1" Gebaude : verwaltet >
 }
 
 package "Client-Seite (CLI)" {
