@@ -1,0 +1,8 @@
+# Kompilierte Java-Klassen
+*.class
+bin/
+build/
+out/
+
+# VS Code Einstellungen (optional, aber oft besser wegzulassen)
+.vscode/
