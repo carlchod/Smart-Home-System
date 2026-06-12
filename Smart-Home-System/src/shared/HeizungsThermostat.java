@@ -1,6 +1,6 @@
 package shared;
 
-public class HeizungsThermostat {
+public class HeizungsThermostat extends SmartDevice {
     // Attribute
     // Konstruktor
     // Methoden

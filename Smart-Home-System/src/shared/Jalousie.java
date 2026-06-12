@@ -1,6 +1,6 @@
 package shared;
 
-public class Jalousie {
+public class Jalousie extends SmartDevice{
     // Attribute
     // Konstruktor
     // Methoden

@@ -62,7 +62,7 @@ package "Shared / Model" {
     Raum "1" *-- "*" SmartDevice : enthält >
 }
 
-package "Server-Seite (RMI)" {
+package "Server-Seite (RMI & Infrastruktur)" {
     interface java.rmi.Remote
 
     interface SmartHomeService extends java.rmi.Remote {
@@ -72,12 +72,20 @@ package "Server-Seite (RMI)" {
 
     class SmartHomeServer implements SmartHomeService {
         - meinGebaude: Gebaude
+        - speicherManager: PersistenzManager
         + startServer(): void
-        + speichereZustand(): void
-        + ladeZustand(): void
+        + serverBeenden(): void
+    }
+
+    class PersistenzManager {
+        - {static} DATEI_NAME: String
+        + speichereGebaude(gebaude: Gebaude): void
+        + ladeGebaude(): Gebaude
     }
 
     SmartHomeServer "1" *-- "1" Gebaude : verwaltet >
+    SmartHomeServer "1" *-- "1" PersistenzManager : nutzt >
+    PersistenzManager ..> Gebaude : liest/schreibt >
 }
 
 package "Client-Seite (CLI)" {
