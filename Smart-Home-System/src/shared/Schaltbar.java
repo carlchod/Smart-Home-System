@@ -1,8 +1,8 @@
 package shared;
 
 public interface Schaltbar {
-    // Attribute
-    // Konstruktor
     // Methoden
-    // Getter und Setter
+    public void schalte();
+    
+    public boolean getStatusAsBoolean();
 }
