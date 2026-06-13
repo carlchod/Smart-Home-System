@@ -1,6 +1,11 @@
 package server;
 
-import shared.*;
+import shared.Gebaeude;
+import shared.HeizungsThermostat;
+import shared.Lichtschalter;
+import shared.Raum;
+import shared.Schaltbar;
+import shared.SmartDevice;
 
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -22,13 +27,15 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         if (meinGebaeude.getRaeume().isEmpty()) {
             initDummyData(); // Initialisiert Testdaten, wenn keine Daten vorhanden sind
         }
+
+        // server beenden muss hier noch irgendwie rein aber kein Plan wie
     }
 
     public static void main(String[] args) {
         try {
             SmartHomeServer smhServer = new SmartHomeServer();
             Registry registry = LocateRegistry.createRegistry(1099);
-            registry.rebind("smhServer", smhServer);
+            registry.rebind("SmartHomeService", smhServer); // rebind() -> bind() um nicht zu überschreiben
             System.out.println("Smart Home Server gestartet und im RMI-Registry registriert.");
         } catch (Exception e) {
             System.err.println("Server-Fehler: " + e.getMessage());
