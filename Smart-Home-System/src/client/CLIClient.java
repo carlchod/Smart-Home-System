@@ -22,7 +22,7 @@ public class CLIClient {
     private void verbindungHerstellen() {
         try {
             System.out.println("Verbinde zum Smart-Home-Server...");
-            Registry registry = LocateRegistry.getRegistry("localhost", 1099);
+            Registry registry = LocateRegistry.getRegistry("127.0.0.1", 1099); // "localhost" = 127.0.0.1
             serverStub = (SmartHomeService) registry.lookup("SmartHomeService");
             System.out.println("Erfolg: Verbindung zum Smart Home Server hergestellt.");
         } catch (Exception e) {
@@ -89,7 +89,29 @@ public class CLIClient {
                 }
                 break;
             case "cd":
-                break; // TODO: Implementieren
+                wechselRaum(teile);
+                break;
+        }
+    }
+
+    private void wechselRaum(String[] teile) throws RemoteException {
+        if (teile.length < 2) {
+            System.out.println("Fehler: Kein Raumname angegeben. Nutzung: cd <raumname> oder cd ..");
+            return;
+        }
+        String ziel = teile[1].trim().toLowerCase();
+        if (ziel.equals("..")) {
+            aktuellerRaumKontext = null; // Kontext zurücksetzen, um Gebäude-Übersicht anzuzeigen
+            System.out.println("Sie haben den Raum verlassen. Sie befinden sich jetzt im Flur.");
+        } else {
+            Raum raum = serverStub.getRaum(ziel);
+            if (raum == null) {
+                System.out.println("Fehler: Raum '" + ziel + "' nicht gefunden.");
+            } else {
+                aktuellerRaumKontext = ziel; // Kontext auf neuen Raum setzen
+                System.out.println("Sie haben den Raum '" + ziel + "' betreten.");
+                zeigeGeraete(ziel);
+            }
         }
     }
 
@@ -122,7 +144,7 @@ public class CLIClient {
             return;
         }
 
-        System.out.println("\n🏠 Sie befinden sich im Flur. Verfügbare Räume:");
+        System.out.println("\nSie befinden sich im Flur. Verfügbare Räume:");
         System.out.println("+--------------------------------+");
         System.out.printf("| %-30s |%n", "Raumname");
         System.out.println("+--------------------------------+");

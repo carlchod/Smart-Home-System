@@ -33,6 +33,8 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
 
     public static void main(String[] args) {
         try {
+            System.setProperty("java.rmi.server.hostname", "127.0.0.1");
+
             SmartHomeServer smhServer = new SmartHomeServer();
             Registry registry = LocateRegistry.createRegistry(1099);
             registry.rebind("SmartHomeService", smhServer); // rebind() -> bind() um nicht zu überschreiben
@@ -82,7 +84,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             return "Fehler: Gerät '" + geraetName + "' im Raum '" + raumName + "' ist nicht schaltbar.";
             }
         }
-        else if ( zielGeraet instanceof HeizungsThermostat) {
+        else if (zielGeraet instanceof HeizungsThermostat) {
             if (befehl.equals("set")) {
                 try {
                     double temperatur = Double.parseDouble(wert);
@@ -109,7 +111,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     private void initDummyData() {
         // Test Daten für Live Demo
         // 1. Gebäude instanzieren
-        Gebaeude meinGebaeude = new Gebaeude("Mein Smart Home Gebaude");
+        this.meinGebaeude = new Gebaeude("Mein Smart Home Gebaude");
         // 2. Räume instanzieren
         Raum meinRaum = new Raum("Wohnzimmer");
         // 3. Geräte instanzieren

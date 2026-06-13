@@ -39,10 +39,10 @@ public class Gebaeude implements Serializable {
 
     public Raum getRaum(String name) {
         // return Raum-Objekt mit dem übergebenen Namen
-        if (name.toLowerCase() == null) {
+        if (name == null) {
             return null;
         }
 
-        return this.raeume.get(name);
+        return this.raeume.get(name.toLowerCase());
     }
 }
