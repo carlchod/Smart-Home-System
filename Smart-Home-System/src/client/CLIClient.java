@@ -83,7 +83,7 @@ public class CLIClient {
                 break;
             case "list", "ls":
                 if (aktuellerRaumKontext == null) {
-                    System.out.println("Bitte wechseln Sie zuerst in einen Raum, um die Geräte aufzulisten.");
+                    zeigeRaeume();
                 } else {
                     zeigeGeraete(aktuellerRaumKontext);
                 }
@@ -111,6 +111,30 @@ public class CLIClient {
             }
             System.out.println("+-----------------+--------------------------------+");
         }
+    }
+
+    private void zeigeRaeume() throws RemoteException { // vollkommen AI
+        // Wir holen uns das gesamte Gebäude-Objekt über RMI
+        shared.Gebaeude gebaude = serverStub.getGebaeude();
+        
+        if (gebaude == null || gebaude.getRaeume().isEmpty()) {
+            System.out.println("Das Gebäude ist aktuell leer. Es gibt keine Räume.");
+            return;
+        }
+
+        System.out.println("\n🏠 Sie befinden sich im Flur. Verfügbare Räume:");
+        System.out.println("+--------------------------------+");
+        System.out.printf("| %-30s |%n", "Raumname");
+        System.out.println("+--------------------------------+");
+
+        // Wir iterieren über alle Schlüssel (Raumnamen) der HashMap
+        for (String raumName : gebaude.getRaeume().keySet()) {
+            // Den ersten Buchstaben groß machen, damit es schöner aussieht (da wir sie in Kleinbuchstaben speichern)
+            String anzeigeName = raumName.substring(0, 1).toUpperCase() + raumName.substring(1);
+            System.out.printf("| %-30s |%n", anzeigeName);
+        }
+        System.out.println("+--------------------------------+");
+        System.out.println("Tipp: Nutzen Sie 'cd <raumname>', um einen Raum zu betreten.\n");
     }
 
     private void zeigeHilfe() {
