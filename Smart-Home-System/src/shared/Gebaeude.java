@@ -10,7 +10,7 @@ public class Gebaeude implements Serializable {
     private String name;
     // Aufbau: [[Raum1 Name: Raum-Objekt1],
     //          [Raum2 Name: Raum-Objekt2]...]
-    private HashMap<String,Raum> raeume;
+    private HashMap<String, Raum> raeume;
     
     // Konstruktor
     public Gebaeude(String name){
@@ -23,6 +23,7 @@ public class Gebaeude implements Serializable {
     public void setName(String name) {
         this.name = name.toLowerCase();
     }
+    
     public String getName() {
         return name;
     }

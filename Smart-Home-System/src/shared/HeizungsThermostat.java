@@ -1,6 +1,6 @@
 package shared;
 
-public class HeizungsThermostat extends SmartDevice implements Schaltbar{
+public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     // Attribute ---
     private double zielTemperatur;
     private double aktuelleTemperatur;
