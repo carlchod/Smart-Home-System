@@ -11,6 +11,7 @@ import java.rmi.registry.LocateRegistry;
 
 public class CLIClient {
     // Attribute
+    private SmartHomeService serverStub;
     private String aktuellerRaumKontext = null; // sichert aktuellen Raum für Befehle; null -> Gebäude-Übersicht anzeigen
 
     // Konstruktor
@@ -22,7 +23,7 @@ public class CLIClient {
         try {
             System.out.println("Verbinde zum Smart-Home-Server...");
             Registry registry = LocateRegistry.getRegistry("localhost", 1099);
-            SmartHomeService serverStub = (SmartHomeService) registry.lookup("SmartHomeService");
+            serverStub = (SmartHomeService) registry.lookup("SmartHomeService");
             System.out.println("Erfolg: Verbindung zum Smart Home Server hergestellt.");
         } catch (Exception e) {
             System.err.println("Fehler: Verbindung zum Smart Home Server fehlgeschlagen: " + e.getMessage());
@@ -81,13 +82,18 @@ public class CLIClient {
                 zeigeHilfe();
                 break;
             case "list", "ls":
-                continue; // TODO: Implementieren
+                if (aktuellerRaumKontext == null) {
+                    System.out.println("Bitte wechseln Sie zuerst in einen Raum, um die Geräte aufzulisten.");
+                } else {
+                    zeigeGeraete(aktuellerRaumKontext);
+                }
+                break;
             case "cd":
-                continue; // TODO: Implementieren
+                break; // TODO: Implementieren
         }
     }
 
-    private void zeigeGeraete(String raumName) {
+    private void zeigeGeraete(String raumName) throws RemoteException {
         Raum raum = serverStub.getRaum(raumName);
         if (raum == null) {
             return;
@@ -119,6 +125,6 @@ public class CLIClient {
 
     public static void main(String[] args) {
         CLIClient client = new CLIClient();
-        client.start();
+        client.mainLoop();
     }
 }

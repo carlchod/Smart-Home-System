@@ -1,6 +1,7 @@
 package shared;
 
 import java.util.ArrayList;
+import java.io.Serializable;
 
 public class Raum implements Serializable {
     // Attribute
