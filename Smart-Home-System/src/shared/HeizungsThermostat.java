@@ -4,39 +4,51 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     // Attribute ---
     private double zielTemperatur;
     private double aktuelleTemperatur;
+    private boolean frostschutzmodus = true; // Standardmäßig im Frostschutzmodus
 
     // Konstruktor ---
     public HeizungsThermostat(String name, double zielTemperatur, double aktuelleTemperatur) {
         super(name);
-        if (zielTemperatur < 0.5 || zielTemperatur > 30.0) {
-            throw new IllegalArgumentException("Zieltemperatur muss zwischen 0.5 und 30.0 Grad Celsius liegen.");
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
         }
         else {
             this.zielTemperatur = zielTemperatur;
+            this.frostschutzmodus = false;
         }
         this.aktuelleTemperatur = aktuelleTemperatur;
     }
 
     public HeizungsThermostat(String name, double zielTemperatur) {
         super(name);
-        this.zielTemperatur = zielTemperatur;
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+            this.frostschutzmodus = false;
+        }
     }
 
     // Methoden ---
     public void schalte() {
-        if (aktuelleTemperatur < zielTemperatur) {
-            aktuelleTemperatur += 0.5; // Heizung erhöht die Temperatur
-        } else if (aktuelleTemperatur > zielTemperatur) {
-            aktuelleTemperatur -= 0.5; // Heizung senkt die Temperatur
-        }
+        zielTemperatur = 5.0; // Heizung ausschalten (Frostschutzmodus)
+        frostschutzmodus = true;
     }
 
     public void waermer() {
-        aktuelleTemperatur += 0.5; // Heizung erhöht die Temperatur
+        if (zielTemperatur + 0.5 <= 30.0) {
+            zielTemperatur += 0.5;
+        }
+        if (frostschutzmodus) {
+            frostschutzmodus = !frostschutzmodus;
+        }
     }
 
     public void kuehler() {
-        aktuelleTemperatur -= 0.5; // Heizung senkt die Temperatur
+        if (zielTemperatur - 0.5 >= 5.0) {
+            zielTemperatur -= 0.5; // Heizung senkt die Temperatur
+        }
     }
 
     public boolean getStatusAsBoolean() {
@@ -44,13 +56,23 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     }
 
     public String getStatusAsString() {
-        return String.format("[] Ziel Temperatur: %.1f°C, Aktuelle Temperatur: %.1f°C", zielTemperatur, aktuelleTemperatur);
+        String heizStatus;
+        if (this.zielTemperatur <= 5.0) {
+            heizStatus = "[AUS / Frostschutz aktiviert]";
+        }
+        else if (this.aktuelleTemperatur < this.zielTemperatur) {
+            heizStatus = "[Heize auf "+ zielTemperatur + "]";
+        }
+        else {
+            heizStatus = "[Inaktiv aktuelle Temperatur == ziel Temperatur]";
+        }
+        return String.format("%s Ziel: %.1f°C | Aktuell: %.1f°C", heizStatus, zielTemperatur, aktuelleTemperatur);
     }
 
     // Getter und Setter ---
     public void setZielTemperatur(double zielTemperatur) {
-        if (zielTemperatur < 0.5 || zielTemperatur > 30.0) {
-            throw new IllegalArgumentException("Zieltemperatur muss zwischen 0.5 und 30.0 Grad Celsius liegen.");
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
         }
         else {
             this.zielTemperatur = zielTemperatur;

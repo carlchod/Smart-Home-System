@@ -12,7 +12,7 @@ public abstract class SmartDevice implements Serializable {
     // Konstruktor ---
     public SmartDevice(String name) {
         this.id = UUID.randomUUID().toString();
-        this.name = name.toLowerCase().replaceAll("\\s+", "_"); // Ersetzt Leerzeichen durch Unterstriche und macht den Namen klein
+        this.name = name.toLowerCase();
     }
 
     // Methoden --- 

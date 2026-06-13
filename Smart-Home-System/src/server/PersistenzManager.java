@@ -15,10 +15,8 @@ public class PersistenzManager {
     
     // Methoden
     public void speichereGebaeude(Gebaeude gebaeude) {
-        try {
-            ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATEI_NAME));
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATEI_NAME));) {
             oos.writeObject(gebaeude);
-            oos.close();
             System.out.println("Erfolg: Systemzustand erfolgreich in '" + DATEI_NAME + "' gespeichert.");
         } catch (IOException e) {
             System.err.println("Fehler: Speichern des Systemzustands in '" + DATEI_NAME + "' fehlgeschlagen: " + e.getMessage());
@@ -33,10 +31,8 @@ public class PersistenzManager {
             return new Gebaeude("leer"); // Rückgabe eines leeren Gebäudes im Fall das keine Datei existiert
         }
 
-        try {
-            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(datei));
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(datei));) {
             Gebaeude gebaeude = (Gebaeude) ois.readObject();
-            ois.close();
             System.out.println("Erfolg: Systemzustand erfolgreich aus '" + DATEI_NAME + "' geladen.");
             return gebaeude;
         } catch (IOException | ClassNotFoundException e) {
