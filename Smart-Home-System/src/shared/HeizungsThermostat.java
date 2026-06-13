@@ -1,18 +1,28 @@
 package shared;
 
 public class HeizungsThermostat extends SmartDevice implements Schaltbar{
-    // Attribute
+    // Attribute ---
     private double zielTemperatur;
     private double aktuelleTemperatur;
 
-    // Konstruktor
+    // Konstruktor ---
     public HeizungsThermostat(String name, double zielTemperatur, double aktuelleTemperatur) {
         super(name);
-        this.zielTemperatur = zielTemperatur;
+        if (zielTemperatur < 0.5 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 0.5 und 30.0 Grad Celsius liegen.");
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+        }
         this.aktuelleTemperatur = aktuelleTemperatur;
     }
 
-    // Methoden
+    public HeizungsThermostat(String name, double zielTemperatur) {
+        super(name);
+        this.zielTemperatur = zielTemperatur;
+    }
+
+    // Methoden ---
     public void schalte() {
         if (aktuelleTemperatur < zielTemperatur) {
             aktuelleTemperatur += 0.5; // Heizung erhöht die Temperatur
@@ -37,9 +47,14 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar{
         return String.format("[] Ziel Temperatur: %.1f°C, Aktuelle Temperatur: %.1f°C", zielTemperatur, aktuelleTemperatur);
     }
 
-    // Getter und Setter
+    // Getter und Setter ---
     public void setZielTemperatur(double zielTemperatur) {
-        this.zielTemperatur = zielTemperatur;
+        if (zielTemperatur < 0.5 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 0.5 und 30.0 Grad Celsius liegen.");
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+        }
     }
     
     public double getZielTemperatur() {
@@ -52,5 +67,5 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar{
 
     public double getAktuelleTemperatur() {
         return aktuelleTemperatur;
-    }
+    }    
 }

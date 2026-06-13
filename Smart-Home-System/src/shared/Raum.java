@@ -2,8 +2,10 @@ package shared;
 
 import java.util.ArrayList;
 
-public class Raum {
+public class Raum implements Serializable {
     // Attribute
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private ArrayList<SmartDevice> geraete;
     
@@ -24,10 +26,17 @@ public class Raum {
     }
 
     public void addGeraet(SmartDevice geraet) {
-        this.geraete.add(geraet);
+        if (geraet != null) {
+            this.geraete.add(geraet);
+        }
     }
 
+    // nur um einzelnes Gerät zu bekommen
     public SmartDevice getGeraet(int index) {
         return this.geraete.get(index);
+    }
+    // um alle Geräte zu bekommen
+    public ArrayList<SmartDevice> getGeraete() {
+        return geraete;
     }
 }
