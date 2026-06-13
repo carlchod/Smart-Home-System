@@ -25,6 +25,8 @@ package "Shared / Model" {
     class HeizungsThermostat extends SmartDevice implements Schaltbar {
         - zielTemperatur: double
         - aktuelleTemperatur: double
+        - letzteZielTemperatur: double
+        - frostschutzmodus: boolean
         + HeizungsThermostat(name: String, zielTemperatur: double, aktuelleTemperatur: double)
         + HeizungsThermostat(name: String, zielTemperatur: double)
         + schalte(): void
@@ -36,6 +38,7 @@ package "Shared / Model" {
         + getZielTemperatur(): double
         + setAktuelleTemperatur(aktuelleTemperatur: double): void
         + getAktuelleTemperatur(): double
+        + getLetzteTemperatur(): double
     }
 
     class Lichtschalter extends SmartDevice implements Schaltbar {
