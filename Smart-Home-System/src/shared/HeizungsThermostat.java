@@ -4,6 +4,7 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     // Attribute ---
     private double zielTemperatur;
     private double aktuelleTemperatur;
+    private double letzteZielTemperatur;
     private boolean frostschutzmodus = true; // Standardmäßig im Frostschutzmodus
 
     // Konstruktor ---
@@ -32,8 +33,13 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
 
     // Methoden ---
     public void schalte() {
-        zielTemperatur = 5.0; // Heizung ausschalten (Frostschutzmodus)
-        frostschutzmodus = true;
+        if (frostschutzmodus) {
+            setZielTemperatur(letzteZielTemperatur);
+        }
+        else {
+            letzteZielTemperatur = zielTemperatur;
+            setZielTemperatur(5.0);
+        }
     }
 
     public void waermer() {
@@ -77,6 +83,13 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
         else {
             this.zielTemperatur = zielTemperatur;
         }
+
+        if (this.zielTemperatur == 5.0) {
+            this.frostschutzmodus = true;
+        }
+        else {
+            this.frostschutzmodus = false;
+        }
     }
     
     public double getZielTemperatur() {
@@ -89,5 +102,9 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
 
     public double getAktuelleTemperatur() {
         return aktuelleTemperatur;
-    }    
+    }
+    
+    public double getLetzteTemperatur() {
+        return letzteZielTemperatur;
+    }
 }
