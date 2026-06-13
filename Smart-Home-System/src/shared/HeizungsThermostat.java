@@ -58,7 +58,7 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     }
 
     public boolean getStatusAsBoolean() {
-        return aktuelleTemperatur < zielTemperatur;
+        return frostschutzmodus;
     }
 
     public String getStatusAsString() {
