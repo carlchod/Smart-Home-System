@@ -7,58 +7,79 @@ package "Shared / Model" {
     interface java.io.Serializable
 
     abstract class SmartDevice implements java.io.Serializable {
+        - {static} serialVersionUID: long
         - id: String
         - name: String
+        + SmartDevice(name: String)
+        + {abstract} getStatusAsString(): String
+        + getId(): String
+        + setName(name: String): void
         + getName(): String
-        + {abstract} getStatusText(): String
     }
 
     interface Schaltbar {
-        + toggle(): void
-        + istEingeschaltet(): boolean
+        + schalte(): void
+        + getStatusAsBoolean(): boolean
     }
 
-    class HeizungsThermostat extends SmartDevice {
+    class HeizungsThermostat extends SmartDevice implements Schaltbar {
         - zielTemperatur: double
-        + setTemperatur(temp: double): void
-        + getStatusText(): String
+        - aktuelleTemperatur: double
+        + HeizungsThermostat(name: String, zielTemperatur: double, aktuelleTemperatur: double)
+        + HeizungsThermostat(name: String, zielTemperatur: double)
+        + schalte(): void
+        + waermer(): void
+        + kuehler(): void
+        + getStatusAsBoolean(): boolean
+        + getStatusAsString(): String
+        + setZielTemperatur(zielTemperatur: double): void
+        + getZielTemperatur(): double
+        + setAktuelleTemperatur(aktuelleTemperatur: double): void
+        + getAktuelleTemperatur(): double
     }
 
     class Lichtschalter extends SmartDevice implements Schaltbar {
-        - zustand: boolean
-        + toggle(): void
-        + istEingeschaltet(): boolean
-        + getStatusText(): String
+        - status: boolean
+        + Lichtschalter(name: String)
+        + schalte(): void
+        + getStatusAsBoolean(): boolean
+        + getStatusAsString(): String
     }
 
     class Jalousie extends SmartDevice {
-        - oeffnungsGrad: int
-        + setOeffnungsGrad(grad: int): void
-        + getStatusText(): String
+        + Jalousie(name: String)
+        + getStatusAsString(): String
     }
 
     class Raum implements java.io.Serializable {
+        - {static} serialVersionUID: long
         - name: String
         - geraete: ArrayList<SmartDevice>
+        + Raum(name: String)
+        + setName(name: String): void
         + getName(): String
-        + getDevices(): ArrayList<SmartDevice>
-        + addDevice(d: SmartDevice): void
+        + addGeraet(geraet: SmartDevice): void
+        + getGeraet(index: int): SmartDevice
+        + getGeraete(): ArrayList<SmartDevice>
     }
 
-    class Gebaude implements java.io.Serializable {
+    class Gebaeude implements java.io.Serializable {
+        - {static} serialVersionUID: long
+        - name: String
         - raeume: HashMap<String, Raum>
+        + Gebaeude(name: String)
+        + setName(name: String): void
+        + getName(): String
+        + addRaum(raum: Raum): void
         + getRaeume(): HashMap<String, Raum>
         + getRaum(name: String): Raum
-        + addRaum(r: Raum): void
     }
 
-    class Admin implements java.io.Serializable {
-        - benutzername: String
-        - passwortHash: String
-        + login(passwort: String): boolean
+    class Admin {
+        
     }
 
-    Gebaude "1" *-- "*" Raum : enthält >
+    Gebaeude "1" *-- "*" Raum : enthält >
     Raum "1" *-- "*" SmartDevice : enthält >
 }
 
@@ -66,35 +87,48 @@ package "Server-Seite (RMI & Infrastruktur)" {
     interface java.rmi.Remote
 
     interface SmartHomeService extends java.rmi.Remote {
-        + getGebaude(): Gebaude
-        + getRaum(name: String): Raum
+        + getGebaeude(): Gebaeude
+        + getRaum(raumName: String): Raum
+        + befehlAusfuehren(raumName: String, geraetName: String, befehl: String, wert: String): String
     }
 
     class SmartHomeServer implements SmartHomeService {
-        - meinGebaude: Gebaude
-        - speicherManager: PersistenzManager
-        + startServer(): void
+        - {static} serialVersionUID: long
+        - meinGebaeude: Gebaeude
+        - persistenzManager: PersistenzManager
+        + SmartHomeServer()
+        + {static} main(args: String[]): void
+        + getGebaeude(): Gebaeude
+        + getRaum(raumName: String): Raum
+        + befehlAusfuehren(raumName: String, geraetName: String, befehl: String, wert: String): String
         + serverBeenden(): void
+        - initDummyData(): void
     }
 
     class PersistenzManager {
         - {static} DATEI_NAME: String
-        + speichereGebaude(gebaude: Gebaude): void
-        + ladeGebaude(): Gebaude
+        + speichereGebaeude(gebaeude: Gebaeude): void
+        + ladeGebaeude(): Gebaeude
     }
 
-    SmartHomeServer "1" *-- "1" Gebaude : verwaltet >
+    SmartHomeServer "1" *-- "1" Gebaeude : verwaltet >
     SmartHomeServer "1" *-- "1" PersistenzManager : nutzt >
-    PersistenzManager ..> Gebaude : liest/schreibt >
+    PersistenzManager ..> Gebaeude : liest/schreibt >
 }
 
 package "Client-Seite (CLI)" {
     class CLIClient {
-        - currentRoomContext: String
-        - scanner: java.util.Scanner
-        + main(args: String[]): void
-        + connectToServer(): void
-        + runCommandLoop(): void
+        - serverStub: SmartHomeService
+        - aktuellerRaumKontext: String
+        + CLIClient()
+        - verbindungHerstellen(): void
+        + mainLoop(): void
+        - verarbeiteBefehl(befehl: String, teile: String[]): void
+        - wechselRaum(teile: String[]): void
+        - zeigeGeraete(raumName: String): void
+        - zeigeRaeume(): void
+        - zeigeHilfe(): void
+        + {static} main(args: String[]): void
     }
 }
 
