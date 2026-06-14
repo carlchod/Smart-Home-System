@@ -16,7 +16,7 @@ public abstract class SmartDevice implements Serializable {
     }
 
     // Methoden --- 
-    public abstract String getStatusAsString();
+    public abstract String getStatusAsString(); // abstrakt, da jede Instanz einen anderen String als Status ausgeben soll
 
     // Getter und Setter ---    
     public String getId() {

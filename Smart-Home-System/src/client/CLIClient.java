@@ -4,6 +4,8 @@ import server.SmartHomeService;
 import shared.Raum;
 import shared.SmartDevice;
 
+import static client.KonsoleDesign.*;
+
 import java.rmi.registry.Registry;
 import java.util.Scanner;
 import java.rmi.RemoteException;
@@ -40,13 +42,23 @@ public class CLIClient {
 
         while(true) {
             String prompt;
-            if (aktuellerRaumKontext == null) {
-                prompt = "SmartHome> ";
-            } else {
-                prompt = "SmartHome/" + aktuellerRaumKontext + "> ";
-            }
-            System.out.print(prompt); // Prompt wo der User sich befindet ausgeben
             
+            if (aktuellerRaumKontext == null) {
+                // Blauer Hintergrund, Weißer Text, Fett wenn im SmartHome "Verzeichnis"
+                prompt =
+                    BG_BLUE + BOLD + " SmartHome "
+                    + RESET + BLUE + PL_ARROW
+                    + RESET + " ";
+            } else { // wenn Raum betreten wird neuer Prompt
+                prompt =
+                    BG_BLUE + BOLD + " SmartHome " + RESET
+                    + BG_GREEN + BLUE + PL_ARROW + RESET
+                    + BG_GREEN + BOLD + " " + aktuellerRaumKontext.toUpperCase() + " "
+                    + RESET + GREEN + PL_ARROW
+                    + RESET + " ";
+            }
+            System.out.print(prompt);
+
             String eingabe = scanner.nextLine(); // Eingabe einlesen
             if (eingabe.trim().isEmpty()) {
                 continue; // Leere Eingaben ignorieren
@@ -161,12 +173,12 @@ public class CLIClient {
 
     private void zeigeHilfe() {
         System.out.println("\n--- VERFÜGBARE BEFEHLE ---");
-        System.out.println("cd <raum>           : Wechselt in einen Raum (z.B. cd wohnzimmer)");
-        System.out.println("cd ..               : Verlässt den aktuellen Raum");
-        System.out.println("ls                  : Listet alle Geräte im aktuellen Raum auf");
-        System.out.println("schalte <gerät>     : Schaltet ein Gerät an/aus (z.B. schalte Deckenlampe)");
-        System.out.println("set <gerät> <wert>  : Setzt einen Wert (z.B. set Heizung-Sofa 22.5)");
-        System.out.println("exit                : Beendet den Client\n");
+        System.out.println("cd <raum>               : Wechselt in einen Raum");
+        System.out.println("cd ..                   : Verlässt den aktuellen Raum");
+        System.out.println("ls                      : Listet alle Geräte im aktuellen Raum auf");
+        System.out.println("schalte <gerätname>     : Schaltet ein Gerät an/aus");
+        System.out.println("set <gerätname> <wert>  : Setzt einen Wert");
+        System.out.println("exit                    : Beendet den Client\n");
     }
 
     public static void main(String[] args) {

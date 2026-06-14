@@ -8,7 +8,6 @@ import java.rmi.RemoteException;
 
 public interface SmartHomeService extends Remote {
     // Methoden
-
     /**
      * Gibt das gesamte Gebäude mit allen Räumen und Geräten zurück.
      * @return
