@@ -172,13 +172,14 @@ public class CLIClient {
     }
 
     private void zeigeHilfe() {
-        System.out.println("\n--- VERFÜGBARE BEFEHLE ---");
-        System.out.println("cd <raum>               : Wechselt in einen Raum");
-        System.out.println("cd ..                   : Verlässt den aktuellen Raum");
-        System.out.println("ls                      : Listet alle Geräte im aktuellen Raum auf");
-        System.out.println("schalte <gerätname>     : Schaltet ein Gerät an/aus");
-        System.out.println("set <gerätname> <wert>  : Setzt einen Wert");
-        System.out.println("exit                    : Beendet den Client\n");
+        System.out.println("\n+---" + BOLD + "VERFÜGBARE BEFEHLE" + RESET+ "---+-----------------------------------------+");
+        System.out.println("|cd <raum>               | Wechselt in einen Raum                  |");
+        System.out.println("|cd ..                   | Verlässt den aktuellen Raum             |");
+        System.out.println("|ls                      | Listet alle Geräte im aktuellen Raum auf|");
+        System.out.println("|schalte <gerätname>     | Schaltet ein Gerät an/aus               |");
+        System.out.println("|set <gerätname> <wert>  | Setzt einen Wert                        |");
+        System.out.println("|exit                    | Beendet den Client                      |");
+        System.out.println("+------------------------+-----------------------------------------+\n");
     }
 
     public static void main(String[] args) {
