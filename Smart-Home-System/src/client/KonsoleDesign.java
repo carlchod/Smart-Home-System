@@ -23,4 +23,3 @@ public class KonsoleDesign {
     // Powerlevel10k Symbol
     public static final String PL_ARROW = "\uE0B0";
 }
-}

@@ -70,8 +70,8 @@ public class CLIClient {
             }
 
             // Eingaben in Befehl und Parameter aufteilen
-            String[] teile = eingabe.split("\\s+", 2); // Aufteilen in Befehl und Rest
-            String befehl = teile[0].toLowerCase(); // Befehl in lowercase
+            String[] argument = eingabe.split("\\s+", 2); // Aufteilen in Befehl und Rest
+            String befehl = argument[0].toLowerCase(); // Befehl in lowercase
 
             if (befehl.equals("exit")) {
                 System.out.println("Beende Smart Home CLI-Client. Auf Wiedersehen!");
@@ -79,7 +79,7 @@ public class CLIClient {
             }
 
             try {
-                verarbeiteBefehl(befehl, teile);
+                verarbeiteBefehl(befehl, argument);
             } catch (RemoteException e) {
                 System.err.println("Fehler: Netzwerkfehler während Ausführung des Befehls: " + e.getMessage());
                 e.printStackTrace();
@@ -93,7 +93,7 @@ public class CLIClient {
     }
 
     // Befehle verarbeiten
-    private void verarbeiteBefehl(String befehl, String[] teile) throws RemoteException {
+    private void verarbeiteBefehl(String befehl, String[] argument) throws RemoteException {
         clearConsole();
         switch (befehl) {
             case "help":
@@ -107,18 +107,20 @@ public class CLIClient {
                 }
                 break;
             case "cd":
-                wechselRaum(teile);
+                wechselRaum(argument);
+                break;
+            case "toggle", "schalte":
+                schalteGeraet(argument);
                 break;
         }
     }
 
-    private void wechselRaum(String[] teile) throws RemoteException {
-        clearConsole();
-        if (teile.length < 2) {
+    private void wechselRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2) {
             System.out.println("Fehler: Kein Raumname angegeben. Nutzung: cd <raumname> oder cd ..");
             return;
         }
-        String ziel = teile[1].trim().toLowerCase();
+        String ziel = argument[1].trim().toLowerCase();
         if (ziel.equals("..")) {
             aktuellerRaumKontext = null; // Kontext zurücksetzen, um Gebäude-Übersicht anzuzeigen
             System.out.println("Sie haben den Raum verlassen. Sie befinden sich jetzt im Flur.");
@@ -135,48 +137,62 @@ public class CLIClient {
     }
 
     private void zeigeGeraete(String raumName) throws RemoteException {
-        clearConsole();
-        Raum raum = serverStub.getRaum(raumName);
-        if (raum == null) {
+        if (serverStub.getRaum(raumName) == null) {
             return;
         }
-        else if (raum.getGeraete().isEmpty()) {
+        else if (serverStub.getRaum(raumName).getGeraete().isEmpty()) {
             System.out.println("Der Raum '" + raumName + "' enthält keine Geräte.");
         }
         else {
             System.out.println("+-----------------+--------------------------------+");
-            System.out.printf("| %-15s | %-30s |%n", "Gerätename", "Aktueller Status");
+            System.out.printf(BOLD + "| %-15s | %-30s |%n" + RESET, "Gerätename", "Aktueller Status");
             System.out.println("+-----------------+--------------------------------+");
 
-            for (SmartDevice device : raum.getGeraete()) {
+            for (SmartDevice device : serverStub.getRaum(raumName).getGeraete()) {
                 System.out.printf("| %-15s | %-30s |%n", device.getName(), device.getStatusAsString());
             }
             System.out.println("+-----------------+--------------------------------+");
         }
     }
 
-    private void zeigeRaeume() throws RemoteException { // vollkommen AI
-        // Wir holen uns das gesamte Gebäude-Objekt über RMI
-        shared.Gebaeude gebaude = serverStub.getGebaeude();
-        
-        if (gebaude == null || gebaude.getRaeume().isEmpty()) {
+    private void zeigeRaeume() throws RemoteException {
+        if (serverStub.getGebaeude() == null || serverStub.getGebaeude().getRaeume().isEmpty()) {
             System.out.println("Das Gebäude ist aktuell leer. Es gibt keine Räume.");
             return;
         }
 
-        System.out.println("\nSie befinden sich im Flur. Verfügbare Räume:");
+        System.out.println("\nSie befinden sich im Menu. Verfügbare Räume:");
         System.out.println("+--------------------------------+");
         System.out.printf("| %-30s |%n", "Raumname");
         System.out.println("+--------------------------------+");
 
-        // Wir iterieren über alle Schlüssel (Raumnamen) der HashMap
-        for (String raumName : gebaude.getRaeume().keySet()) {
-            // Den ersten Buchstaben groß machen, damit es schöner aussieht (da wir sie in Kleinbuchstaben speichern)
+        // über alle Schlüssel (Raumnamen) der HashMap iterieren
+        for (String raumName : serverStub.getGebaeude().getRaeume().keySet()) {
+            // ersten Buchstaben groß machen, damit schöner aussieht
             String anzeigeName = raumName.substring(0, 1).toUpperCase() + raumName.substring(1);
             System.out.printf("| %-30s |%n", anzeigeName);
         }
         System.out.println("+--------------------------------+");
         System.out.println("Tipp: Nutzen Sie 'cd <raumname>', um einen Raum zu betreten.\n");
+    }
+
+    private void schalteGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Sie befinden sich in keinem Raum. Bitte wechseln Sie zuerst in einen Raum." + RESET);
+            return;
+        }
+        else if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: schalte <gerätname>" + RESET);
+            return;
+        }
+        String antwort = serverStub.befehlAusfuehren(aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Fehler")) {
+            System.out.println(RED + BOLD + antwort + RESET);
+        } else {
+            System.out.println(antwort); // falls der Server was anderes schickt
+        }
     }
 
     private void zeigeHilfe() {
