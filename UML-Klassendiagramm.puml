@@ -120,19 +120,38 @@ package "Server-Seite (RMI & Infrastruktur)" {
 }
 
 package "Client-Seite (CLI)" {
+    class KonsoleDesign {
+        + {static} RESET: String
+        + {static} BOLD: String
+        + {static} RED: String
+        + {static} GREEN: String
+        + {static} YELLOW: String
+        + {static} BLUE: String
+        + {static} CYAN: String
+        + {static} BG_BLUE: String
+        + {static} BG_GREEN: String
+        + {static} BG_GRAY: String
+        + {static} PL_ARROW: String
+    }
+
     class CLIClient {
         - serverStub: SmartHomeService
         - aktuellerRaumKontext: String
         + CLIClient()
         - verbindungHerstellen(): void
+        + {static} clearConsole(): void
         + mainLoop(): void
-        - verarbeiteBefehl(befehl: String, teile: String[]): void
-        - wechselRaum(teile: String[]): void
+        - verarbeiteBefehl(befehl: String, argument: String[]): void
+        - wechselRaum(argument: String[]): void
         - zeigeGeraete(raumName: String): void
         - zeigeRaeume(): void
+        - schalteGeraet(argument: String[]): void
         - zeigeHilfe(): void
+        - druckeHeader(titel: String): void
         + {static} main(args: String[]): void
     }
+    
+    CLIClient ..> KonsoleDesign : nutzt >
 }
 
 CLIClient ..> SmartHomeService : nutzt via RMI >
