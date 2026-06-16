@@ -74,14 +74,13 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
 
         befehl = befehl.toLowerCase();
 
-        if (zielGeraet instanceof Schaltbar) {
-            if(befehl.equals("toggle")) {
+        if (befehl.equals("toggle") || befehl.equals("schalte")) {
+            if (zielGeraet instanceof Schaltbar) {
                 Schaltbar schaltGeraet = (Schaltbar) zielGeraet;
                 schaltGeraet.schalte();
                 return "Erfolg: " + zielGeraet.getName() + " im Raum '" + raumName + "' wurde geschaltet.\nNeuer Status: " + zielGeraet.getStatusAsString();
-            }
-            else {
-            return "Fehler: Gerät '" + geraetName + "' im Raum '" + raumName + "' ist nicht schaltbar.";
+            } else {
+                return "Fehler: Das Gerät '" + geraetName + "' besitzt keinen Schalter.";
             }
         }
         else if (zielGeraet instanceof HeizungsThermostat) {

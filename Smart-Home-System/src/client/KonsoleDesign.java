@@ -22,4 +22,24 @@ public class KonsoleDesign {
     
     // Powerlevel10k Symbol
     public static final String PL_ARROW = "\uE0B0";
+
+    public static void clearConsole() {
+        System.out.print("\033[H\033[2J"); 
+        System.out.flush();
+    }
+
+    public static void druckeHeader(String titel) {
+        int standardBreite = 100;
+        String prefix = "+---";
+
+        int stricheAnzahl = standardBreite - prefix.length() - titel.length() - 1;
+        if (stricheAnzahl < 0) stricheAnzahl = 0;
+        
+        StringBuilder linie = new StringBuilder();
+        for (int i = 0; i < stricheAnzahl; i++) {
+            linie.append("-");
+        }
+        
+        System.out.println(BLUE + BOLD + prefix + RESET + BOLD + titel + RESET + BLUE + BOLD + linie.toString() + "+" + RESET);
+    }
 }

@@ -34,11 +34,6 @@ public class CLIClient {
         }
     }
 
-    public static void clearConsole() {
-        System.out.print("\033[H\033[2J"); // clear terminal screen an reset cursor
-        System.out.flush();
-    }
-
     // MainLoop: wartet auf Benutzereingaben und führt Befehle aus
     public void mainLoop() {
         Scanner scanner = new Scanner(System.in);
@@ -113,6 +108,9 @@ public class CLIClient {
                 break;
             case "toggle", "schalte":
                 schalteGeraet(argument);
+                break;
+            case "set":
+                setzeGeraet(argument);
                 break;
         }
     }
@@ -197,6 +195,47 @@ public class CLIClient {
         }
     }
 
+    private void setzeGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Sie befinden sich in keinem Raum." + RESET);
+            return;
+        }
+        else if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät/Wert angegeben. Nutzung: set <gerätname> <wert>" + RESET);
+            return;
+        }
+        
+        String eingabe = argument[1].trim();
+        int letztesLeerzeichenIndex = eingabe.lastIndexOf(' ');
+
+        if (letztesLeerzeichenIndex == -1) {
+            System.out.println(RED + "Fehler: Es fehlt ein Wert. Nutzung: set <gerätname> <wert>" + RESET);
+            return;
+        }
+
+        String geraetName = eingabe.substring(0, letztesLeerzeichenIndex).trim();
+        String wert = eingabe.substring(letztesLeerzeichenIndex + 1).trim();
+
+        try {
+            Double.parseDouble(wert);
+        } catch (NumberFormatException e) {
+            System.out.println(RED + "Fehler: Der Wert '" + wert + "' ist keine gültige Zahl! Bitte verwenden Sie einen Punkt (z.B. 22.5)." + RESET);
+            return; // Abbruch: Server wird gar nicht erst kontaktiert
+        }
+
+        String antwort = serverStub.befehlAusfuehren(aktuellerRaumKontext, geraetName, "set", wert);
+        
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        }
+        else if (antwort.startsWith("Fehler")) {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+        else {
+            System.out.println(antwort);
+        }
+    }
+
     private void zeigeHilfe() {
         druckeHeader("VERFÜGBARE BEFEHLE");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd <raum>", "Wechselt in einen Raum");
@@ -206,23 +245,6 @@ public class CLIClient {
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "Setzt einen Wert");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
         druckeHeader("");
-    }
-
-    private void druckeHeader(String titel) {
-        int standardBreite = 100;
-        String prefix = "+---";
-
-        // wie viele Striche nach dem Titel fehlen noch?
-        int stricheAnzahl = standardBreite - prefix.length() - titel.length() - 1;
-        if (stricheAnzahl < 0) stricheAnzahl = 0;
-        
-        StringBuilder linie = new StringBuilder();
-        for (int i = 0; i < stricheAnzahl; i++) {
-            linie.append("-");
-        }
-        
-        // Ausgabe: Rahmen in Cyan, Titel in Fett
-        System.out.println(BLUE + BOLD + prefix + RESET + BOLD + titel + RESET + BLUE + BOLD + linie.toString() + "+" + RESET);
     }
 
     public static void main(String[] args) {
