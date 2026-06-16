@@ -34,6 +34,11 @@ public class CLIClient {
         }
     }
 
+    public static void clearConsole() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
+
     // MainLoop: wartet auf Benutzereingaben und führt Befehle aus
     public void mainLoop() {
         Scanner scanner = new Scanner(System.in);
@@ -89,6 +94,7 @@ public class CLIClient {
 
     // Befehle verarbeiten
     private void verarbeiteBefehl(String befehl, String[] teile) throws RemoteException {
+        clearConsole();
         switch (befehl) {
             case "help":
                 zeigeHilfe();
@@ -107,6 +113,7 @@ public class CLIClient {
     }
 
     private void wechselRaum(String[] teile) throws RemoteException {
+        clearConsole();
         if (teile.length < 2) {
             System.out.println("Fehler: Kein Raumname angegeben. Nutzung: cd <raumname> oder cd ..");
             return;
@@ -128,6 +135,7 @@ public class CLIClient {
     }
 
     private void zeigeGeraete(String raumName) throws RemoteException {
+        clearConsole();
         Raum raum = serverStub.getRaum(raumName);
         if (raum == null) {
             return;

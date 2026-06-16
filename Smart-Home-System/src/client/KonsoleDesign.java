@@ -20,7 +20,7 @@ public class KonsoleDesign {
     public static final String BG_GREEN = "\u001B[42m";
     public static final String BG_GRAY = "\u001B[47m";
     
-    // Powerline Symbol
+    // Powerlevel10k Symbol
     public static final String PL_ARROW = "\uE0B0";
 }
 }
