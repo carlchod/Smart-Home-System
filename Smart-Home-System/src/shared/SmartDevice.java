@@ -4,27 +4,27 @@ import java.io.Serializable;
 import java.util.UUID;
 
 public abstract class SmartDevice implements Serializable {
-    // Attribute ---
+    // Attribute
     private static final long serialVersionUID = 1L;
     private String id;
     private String name;
 
-    // Konstruktor ---
+    // Konstruktor
     public SmartDevice(String name) {
         this.id = UUID.randomUUID().toString();
         this.name = name.toLowerCase();
     }
 
-    // Methoden --- 
+    // Methoden
     public abstract String getStatusAsString(); // abstrakt, da jede Instanz einen anderen String als Status ausgeben soll
 
-    // Getter und Setter ---    
+    // Getter und Setter   
     public String getId() {
         return id;
     }
 
     // könnte zu problemen führen,
-    // wenn der User kein Admin ist und weiß was er macht
+    // wenn der User kein Admin ist und nicht weiß was er macht
     public void setName(String name) {
         this.name = name;
     }

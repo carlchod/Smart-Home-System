@@ -148,11 +148,11 @@ public class CLIClient {
         }
         else {
             druckeHeader(raumName);
-            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-15s " + BLUE + "|" + RESET + BOLD + " %-30s " + BLUE + "|\n" + RESET, "Gerätename", "Aktueller Status");
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + "%-31s " + BLUE + "|" + RESET + BOLD + "%-65s" + BLUE + "|\n" + RESET, "Gerätename", "Aktueller Status");
             druckeHeader("");
 
             for (SmartDevice device : serverStub.getRaum(raumName).getGeraete()) {
-                System.out.printf("| %-15s | %-30s |\n", device.getName(), device.getStatusAsString());
+                System.out.printf(BLUE + BOLD + "|" + RESET + " %-30s " + BLUE + BOLD + "|" + RESET + " %-64s" + BLUE + BOLD + "|\n", device.getName(), device.getStatusAsString());
             }
             druckeHeader("");
         }

@@ -116,12 +116,11 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         Raum meinRaum = new Raum("Wohnzimmer");
         // 3. Geräte instanzieren
         Lichtschalter meinLichtschalter = new Lichtschalter("Wohnzimmer Lichtschalter");
-        HeizungsThermostat meinHeizungsThermostat = new HeizungsThermostat("Wohnzimmer Heizungs Thermostat", 22.0);
+        HeizungsThermostat meinHeizungsThermostat = new HeizungsThermostat("Wohnzimmer Heizungs Thermostat", 22.0, 19.0);
         // 4. Geräte zu Räumen hinzufügen
         meinRaum.addGeraet(meinLichtschalter);
         meinRaum.addGeraet(meinHeizungsThermostat);
         // 5. Räume zu Gebäude hinzufügen
         meinGebaeude.addRaum(meinRaum);
     }
-    // Getter und Setter
 }

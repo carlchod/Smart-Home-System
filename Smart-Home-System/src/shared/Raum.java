@@ -17,6 +17,7 @@ public class Raum implements Serializable {
     }
 
     // Methoden
+
     // Getter und Setter
     public void setName(String name) {
         this.name = name;

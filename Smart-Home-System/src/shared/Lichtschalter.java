@@ -1,16 +1,16 @@
 package shared;
 
 public class Lichtschalter extends SmartDevice implements Schaltbar {
-    // Attribute ---
+    // Attribute
     private boolean status;
     
-    // Konstruktor ---
+    // Konstruktor
     public Lichtschalter(String name) {
         super(name);
         this.status = false; // standardmäßig ausgeschaltet
     }
     
-    // Methoden ---
+    // Methoden
     public void schalte() {
         this.status = !this.status; // Status wechseln
     }
@@ -26,5 +26,5 @@ public class Lichtschalter extends SmartDevice implements Schaltbar {
             return "[] Ausgeschaltet";
         }
     }
-    // Getter und Setter ---
+    // Getter und Setter
 }
