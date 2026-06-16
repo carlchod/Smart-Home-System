@@ -42,6 +42,8 @@ public class CLIClient {
     // MainLoop: wartet auf Benutzereingaben und führt Befehle aus
     public void mainLoop() {
         Scanner scanner = new Scanner(System.in);
+        clearConsole();
+        druckeHeader("HAUPTMENÜ");
         System.out.println("Willkommen in Ihrem Smart Home CLI-Client!");
         System.out.println("Geben Sie 'help' ein, um eine Liste der verfügbaren Befehle zu erhalten.");
 
@@ -123,14 +125,15 @@ public class CLIClient {
         String ziel = argument[1].trim().toLowerCase();
         if (ziel.equals("..")) {
             aktuellerRaumKontext = null; // Kontext zurücksetzen, um Gebäude-Übersicht anzuzeigen
-            System.out.println("Sie haben den Raum verlassen. Sie befinden sich jetzt im Flur.");
+            System.out.println("Sie haben den Raum verlassen.");
+            druckeHeader("HAUPTMENÜ");
         } else {
             Raum raum = serverStub.getRaum(ziel);
             if (raum == null) {
                 System.out.println("Fehler: Raum '" + ziel + "' nicht gefunden.");
             } else {
                 aktuellerRaumKontext = ziel; // Kontext auf neuen Raum setzen
-                System.out.println("Sie haben den Raum '" + ziel + "' betreten.");
+                System.out.println("Sie befinden sich jetzt im Raum '" + ziel + "'.");
                 zeigeGeraete(ziel);
             }
         }
@@ -144,35 +147,34 @@ public class CLIClient {
             System.out.println("Der Raum '" + raumName + "' enthält keine Geräte.");
         }
         else {
-            System.out.println("+-----------------+--------------------------------+");
-            System.out.printf(BOLD + "| %-15s | %-30s |%n" + RESET, "Gerätename", "Aktueller Status");
-            System.out.println("+-----------------+--------------------------------+");
+            druckeHeader(raumName);
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-15s " + BLUE + "|" + RESET + BOLD + " %-30s " + BLUE + "|%n" + RESET, "Gerätename", "Aktueller Status");
+            druckeHeader("");
 
             for (SmartDevice device : serverStub.getRaum(raumName).getGeraete()) {
                 System.out.printf("| %-15s | %-30s |%n", device.getName(), device.getStatusAsString());
             }
-            System.out.println("+-----------------+--------------------------------+");
+            druckeHeader("");
         }
     }
 
     private void zeigeRaeume() throws RemoteException {
         if (serverStub.getGebaeude() == null || serverStub.getGebaeude().getRaeume().isEmpty()) {
-            System.out.println("Das Gebäude ist aktuell leer. Es gibt keine Räume.");
+            System.out.println(YELLOW + "Das Gebäude ist aktuell leer. Es gibt keine Räume." + RESET);
             return;
         }
 
-        System.out.println("\nSie befinden sich im Menu. Verfügbare Räume:");
-        System.out.println("+--------------------------------+");
-        System.out.printf("| %-30s |%n", "Raumname");
-        System.out.println("+--------------------------------+");
+        druckeHeader("GEBÄUDE-ÜBERSICHT");
+        System.out.printf(BLUE + "|" + BOLD + " %-71s" + RESET + BLUE + "                          |%n" + RESET, "Verfügbare Räume");
+        druckeHeader("");
 
         // über alle Schlüssel (Raumnamen) der HashMap iterieren
         for (String raumName : serverStub.getGebaeude().getRaeume().keySet()) {
             // ersten Buchstaben groß machen, damit schöner aussieht
             String anzeigeName = raumName.substring(0, 1).toUpperCase() + raumName.substring(1);
-            System.out.printf("| %-30s |%n", anzeigeName);
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-71s " + BLUE + BOLD + "                         |%n" + RESET, anzeigeName);
         }
-        System.out.println("+--------------------------------+");
+        druckeHeader("");
         System.out.println("Tipp: Nutzen Sie 'cd <raumname>', um einen Raum zu betreten.\n");
     }
 
@@ -196,14 +198,31 @@ public class CLIClient {
     }
 
     private void zeigeHilfe() {
-        System.out.println("\n+---" + BOLD + "VERFÜGBARE BEFEHLE" + RESET+ "---+-----------------------------------------+");
-        System.out.println("|cd <raum>               | Wechselt in einen Raum                  |");
-        System.out.println("|cd ..                   | Verlässt den aktuellen Raum             |");
-        System.out.println("|ls                      | Listet alle Geräte im aktuellen Raum auf|");
-        System.out.println("|schalte <gerätname>     | Schaltet ein Gerät an/aus               |");
-        System.out.println("|set <gerätname> <wert>  | Setzt einen Wert                        |");
-        System.out.println("|exit                    | Beendet den Client                      |");
-        System.out.println("+------------------------+-----------------------------------------+\n");
+        druckeHeader("VERFÜGBARE BEFEHLE");
+        System.out.println(BLUE + BOLD + "|" + RESET + " cd <raum>               " + BLUE + BOLD + "|" + RESET + " Wechselt in einen Raum                                                 " + BLUE + BOLD + "|" + RESET);
+        System.out.println(BLUE + BOLD + "|" + RESET + " cd ..                   " + BLUE + BOLD + "|" + RESET + " Verlässt den aktuellen Raum                                            " + BLUE + BOLD + "|" + RESET);
+        System.out.println(BLUE + BOLD + "|" + RESET + " ls                      " + BLUE + BOLD + "|" + RESET + " Listet alle Geräte im aktuellen Raum auf                               " + BLUE + BOLD + "|" + RESET);
+        System.out.println(BLUE + BOLD + "|" + RESET + " schalte <gerätname>     " + BLUE + BOLD + "|" + RESET + " Schaltet ein Gerät an/aus                                              " + BLUE + BOLD + "|" + RESET);
+        System.out.println(BLUE + BOLD + "|" + RESET + " set <gerätname> <wert>  " + BLUE + BOLD + "|" + RESET + " Setzt einen Wert                                                       " + BLUE + BOLD + "|" + RESET);
+        System.out.println(BLUE + BOLD + "|" + RESET + " exit                    " + BLUE + BOLD + "|" + RESET + " Beendet den Client                                                     " + BLUE + BOLD + "|" + RESET);
+        druckeHeader("");
+    }
+
+    private void druckeHeader(String titel) {
+        int standardBreite = 100;
+        String prefix = "+---";
+
+        // wie viele Striche nach dem Titel fehlen noch?
+        int stricheAnzahl = standardBreite - prefix.length() - titel.length() - 1;
+        if (stricheAnzahl < 0) stricheAnzahl = 0;
+        
+        StringBuilder linie = new StringBuilder();
+        for (int i = 0; i < stricheAnzahl; i++) {
+            linie.append("-");
+        }
+        
+        // Ausgabe: Rahmen in Cyan, Titel in Fett
+        System.out.println(BLUE + BOLD + prefix + RESET + BOLD + titel + RESET + BLUE + BOLD + linie.toString() + "+" + RESET);
     }
 
     public static void main(String[] args) {
