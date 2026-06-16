@@ -163,7 +163,7 @@ public class CLIClient {
         }
 
         druckeHeader("GEBÄUDE-ÜBERSICHT");
-        System.out.printf(BLUE + "|" + BOLD + " %-71s" + RESET + BLUE + "                          |\n" + RESET, "Verfügbare Räume");
+        System.out.printf(BLUE + "|" + BOLD + " %-97s" + RESET + BLUE + "|\n" + RESET, "Verfügbare Räume");
         druckeHeader("");
 
         // über alle Schlüssel (Raumnamen) der HashMap iterieren

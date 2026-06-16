@@ -57,7 +57,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     public String befehlAusfuehren(String raumName, String geraetName, String befehl, String wert) throws RemoteException {
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
-            return "Fehler:Raum '" + raumName + "' nicht gefunden.";
+            return "Fehler: Raum '" + raumName + "' nicht gefunden.";
         }
 
         SmartDevice zielGeraet = null;
@@ -95,7 +95,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                 }
             }
             else {
-                return "Fehler: Für Heizungen ist nur der Befehl 'set <Wert>' erlaubt.";
+                return "Fehler: Für Heizungen ist nur der Befehl 'set <wert>' erlaubt.";
             }
         }
 
