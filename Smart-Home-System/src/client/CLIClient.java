@@ -35,7 +35,7 @@ public class CLIClient {
     }
 
     public static void clearConsole() {
-        System.out.print("\033[H\033[2J");
+        System.out.print("\033[H\033[2J"); // clear terminal screen an reset cursor
         System.out.flush();
     }
 
@@ -148,11 +148,11 @@ public class CLIClient {
         }
         else {
             druckeHeader(raumName);
-            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-15s " + BLUE + "|" + RESET + BOLD + " %-30s " + BLUE + "|%n" + RESET, "Gerätename", "Aktueller Status");
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-15s " + BLUE + "|" + RESET + BOLD + " %-30s " + BLUE + "|\n" + RESET, "Gerätename", "Aktueller Status");
             druckeHeader("");
 
             for (SmartDevice device : serverStub.getRaum(raumName).getGeraete()) {
-                System.out.printf("| %-15s | %-30s |%n", device.getName(), device.getStatusAsString());
+                System.out.printf("| %-15s | %-30s |\n", device.getName(), device.getStatusAsString());
             }
             druckeHeader("");
         }
@@ -165,14 +165,14 @@ public class CLIClient {
         }
 
         druckeHeader("GEBÄUDE-ÜBERSICHT");
-        System.out.printf(BLUE + "|" + BOLD + " %-71s" + RESET + BLUE + "                          |%n" + RESET, "Verfügbare Räume");
+        System.out.printf(BLUE + "|" + BOLD + " %-71s" + RESET + BLUE + "                          |\n" + RESET, "Verfügbare Räume");
         druckeHeader("");
 
         // über alle Schlüssel (Raumnamen) der HashMap iterieren
         for (String raumName : serverStub.getGebaeude().getRaeume().keySet()) {
             // ersten Buchstaben groß machen, damit schöner aussieht
             String anzeigeName = raumName.substring(0, 1).toUpperCase() + raumName.substring(1);
-            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-71s " + BLUE + BOLD + "                         |%n" + RESET, anzeigeName);
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-71s " + BLUE + BOLD + "%25s|\n" + RESET, anzeigeName, "");
         }
         druckeHeader("");
         System.out.println("Tipp: Nutzen Sie 'cd <raumname>', um einen Raum zu betreten.\n");
@@ -199,12 +199,12 @@ public class CLIClient {
 
     private void zeigeHilfe() {
         druckeHeader("VERFÜGBARE BEFEHLE");
-        System.out.println(BLUE + BOLD + "|" + RESET + " cd <raum>               " + BLUE + BOLD + "|" + RESET + " Wechselt in einen Raum                                                 " + BLUE + BOLD + "|" + RESET);
-        System.out.println(BLUE + BOLD + "|" + RESET + " cd ..                   " + BLUE + BOLD + "|" + RESET + " Verlässt den aktuellen Raum                                            " + BLUE + BOLD + "|" + RESET);
-        System.out.println(BLUE + BOLD + "|" + RESET + " ls                      " + BLUE + BOLD + "|" + RESET + " Listet alle Geräte im aktuellen Raum auf                               " + BLUE + BOLD + "|" + RESET);
-        System.out.println(BLUE + BOLD + "|" + RESET + " schalte <gerätname>     " + BLUE + BOLD + "|" + RESET + " Schaltet ein Gerät an/aus                                              " + BLUE + BOLD + "|" + RESET);
-        System.out.println(BLUE + BOLD + "|" + RESET + " set <gerätname> <wert>  " + BLUE + BOLD + "|" + RESET + " Setzt einen Wert                                                       " + BLUE + BOLD + "|" + RESET);
-        System.out.println(BLUE + BOLD + "|" + RESET + " exit                    " + BLUE + BOLD + "|" + RESET + " Beendet den Client                                                     " + BLUE + BOLD + "|" + RESET);
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd <raum>", "Wechselt in einen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd ..", "Verlässt den aktuellen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "ls", "Listet alle Geräte im aktuellen Raum auf");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "schalte <gerätname>", "Schaltet ein Gerät an/aus");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "Setzt einen Wert");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
         druckeHeader("");
     }
 
