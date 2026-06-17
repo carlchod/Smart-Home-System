@@ -132,6 +132,9 @@ package "Client-Seite (CLI)" {
         + {static} BG_GREEN: String
         + {static} BG_GRAY: String
         + {static} PL_ARROW: String
+        - KonsoleDesign()
+        + {static} clearConsole(): void
+        + {static} druckeHeader(argument: String): void
     }
 
     class CLIClient {
@@ -139,7 +142,6 @@ package "Client-Seite (CLI)" {
         - aktuellerRaumKontext: String
         + CLIClient()
         - verbindungHerstellen(): void
-        + {static} clearConsole(): void
         + mainLoop(): void
         - verarbeiteBefehl(befehl: String, argument: String[]): void
         - wechselRaum(argument: String[]): void
@@ -147,7 +149,6 @@ package "Client-Seite (CLI)" {
         - zeigeRaeume(): void
         - schalteGeraet(argument: String[]): void
         - zeigeHilfe(): void
-        - druckeHeader(titel: String): void
         + {static} main(args: String[]): void
     }
     
