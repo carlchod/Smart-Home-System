@@ -28,8 +28,6 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         if (meinGebaeude.getRaeume().isEmpty()) {
             initDummyData(); // Initialisiert Testdaten, wenn keine Daten vorhanden sind
         }
-
-        // server beenden muss hier noch irgendwie rein aber kein Plan wie
     }
 
     public static void main(String[] args) {
