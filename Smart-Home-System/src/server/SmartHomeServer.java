@@ -6,6 +6,7 @@ import shared.Lichtschalter;
 import shared.Raum;
 import shared.Schaltbar;
 import shared.SmartDevice;
+import shared.SmartHomeService;
 
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;

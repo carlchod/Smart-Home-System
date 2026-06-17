@@ -1,8 +1,8 @@
 package client;
 
-import server.SmartHomeService;
 import shared.Raum;
 import shared.SmartDevice;
+import shared.SmartHomeService;
 
 import static client.KonsoleDesign.*;
 

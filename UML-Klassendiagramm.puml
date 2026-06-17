@@ -1,32 +1,39 @@
 @startuml
 skinparam classAttributeIconSize 0
-skinparam monochrome true
 skinparam packageStyle rectangle
 
-package "Shared / Model" {
-    interface java.io.Serializable
+package java.rmi {
+    interface Remote <<interface>> {
+    }
+}
 
-    abstract class SmartDevice implements java.io.Serializable {
-        - {static} serialVersionUID: long
-        - id: String
+package java.rmi.server {
+    class UnicastRemoteObject {
+        # UnicastRemoteObject()
+    }
+}
+
+package shared {
+    class Admin {
+    }
+
+    class Gebaeude {
+        - {static} serialVersionUID: long = 1L
         - name: String
-        + SmartDevice(name: String)
-        + {abstract} getStatusAsString(): String
-        + getId(): String
+        - raeume: HashMap<String, Raum>
+        + Gebaeude(name: String)
         + setName(name: String): void
         + getName(): String
+        + addRaum(raum: Raum): void
+        + getRaeume(): HashMap<String, Raum>
+        + getRaum(name: String): Raum
     }
 
-    interface Schaltbar {
-        + schalte(): void
-        + getStatusAsBoolean(): boolean
-    }
-
-    class HeizungsThermostat extends SmartDevice implements Schaltbar {
+    class HeizungsThermostat {
         - zielTemperatur: double
         - aktuelleTemperatur: double
-        - letzteZielTemperatur: double
-        - frostschutzmodus: boolean
+        - letzteZielTemperatur: double = 5.0
+        - frostschutzmodus: boolean = true
         + HeizungsThermostat(name: String, zielTemperatur: double, aktuelleTemperatur: double)
         + HeizungsThermostat(name: String, zielTemperatur: double)
         + schalte(): void
@@ -41,21 +48,21 @@ package "Shared / Model" {
         + getLetzteTemperatur(): double
     }
 
-    class Lichtschalter extends SmartDevice implements Schaltbar {
-        - status: boolean
+    class Jalousie {
+        + Jalousie(name: String)
+        + getStatusAsString(): String
+    }
+
+    class Lichtschalter {
+        - status: boolean = false
         + Lichtschalter(name: String)
         + schalte(): void
         + getStatusAsBoolean(): boolean
         + getStatusAsString(): String
     }
 
-    class Jalousie extends SmartDevice {
-        + Jalousie(name: String)
-        + getStatusAsString(): String
-    }
-
-    class Raum implements java.io.Serializable {
-        - {static} serialVersionUID: long
+    class Raum {
+        - {static} serialVersionUID: long = 1L
         - name: String
         - geraete: ArrayList<SmartDevice>
         + Raum(name: String)
@@ -66,37 +73,38 @@ package "Shared / Model" {
         + getGeraete(): ArrayList<SmartDevice>
     }
 
-    class Gebaeude implements java.io.Serializable {
-        - {static} serialVersionUID: long
+    interface Schaltbar <<interface>> {
+        + schalte(): void
+        + getStatusAsBoolean(): boolean
+    }
+
+    abstract class SmartDevice {
+        - {static} serialVersionUID: long = 1L
+        - id: String
         - name: String
-        - raeume: HashMap<String, Raum>
-        + Gebaeude(name: String)
+        + SmartDevice(name: String)
+        + {abstract} getStatusAsString(): String
+        + getId(): String
         + setName(name: String): void
         + getName(): String
-        + addRaum(raum: Raum): void
-        + getRaeume(): HashMap<String, Raum>
-        + getRaum(name: String): Raum
     }
 
-    class Admin {
-        
-    }
-
-    Gebaeude "1" *-- "*" Raum : enthält >
-    Raum "1" *-- "*" SmartDevice : enthält >
-}
-
-package "Server-Seite (RMI & Infrastruktur)" {
-    interface java.rmi.Remote
-
-    interface SmartHomeService extends java.rmi.Remote {
+    interface SmartHomeService <<interface>> {
         + getGebaeude(): Gebaeude
         + getRaum(raumName: String): Raum
         + befehlAusfuehren(raumName: String, geraetName: String, befehl: String, wert: String): String
     }
+}
 
-    class SmartHomeServer implements SmartHomeService {
-        - {static} serialVersionUID: long
+package server {
+    class PersistenzManager {
+        - {static} DATEI_NAME: String = "smart_home_data.dat"
+        + speichereGebaeude(gebaeude: Gebaeude): void
+        + ladeGebaeude(): Gebaeude
+    }
+
+    class SmartHomeServer {
+        - {static} serialVersionUID: long = 1L
         - meinGebaeude: Gebaeude
         - persistenzManager: PersistenzManager
         + SmartHomeServer()
@@ -107,19 +115,25 @@ package "Server-Seite (RMI & Infrastruktur)" {
         + serverBeenden(): void
         - initDummyData(): void
     }
-
-    class PersistenzManager {
-        - {static} DATEI_NAME: String
-        + speichereGebaeude(gebaeude: Gebaeude): void
-        + ladeGebaeude(): Gebaeude
-    }
-
-    SmartHomeServer "1" *-- "1" Gebaeude : verwaltet >
-    SmartHomeServer "1" *-- "1" PersistenzManager : nutzt >
-    PersistenzManager ..> Gebaeude : liest/schreibt >
 }
 
-package "Client-Seite (CLI)" {
+package client {
+    class CLIClient {
+        - serverStub: SmartHomeService
+        - aktuellerRaumKontext: String
+        + CLIClient()
+        - verbindungHerstellen(): void
+        + mainLoop(): void
+        - verarbeiteBefehl(befehl: String, argument: String[]): void
+        - wechselRaum(argument: String[]): void
+        - zeigeGeraete(raumName: String): void
+        - zeigeRaeume(): void
+        - schalteGeraet(argument: String[]): void
+        - setzeGeraet(argument: String[]): void
+        - zeigeHilfe(): void
+        + {static} main(args: String[]): void
+    }
+
     class KonsoleDesign {
         + {static} RESET: String
         + {static} BOLD: String
@@ -134,27 +148,34 @@ package "Client-Seite (CLI)" {
         + {static} PL_ARROW: String
         - KonsoleDesign()
         + {static} clearConsole(): void
-        + {static} druckeHeader(argument: String): void
+        + {static} druckeHeader(titel: String): void
     }
-
-    class CLIClient {
-        - serverStub: SmartHomeService
-        - aktuellerRaumKontext: String
-        + CLIClient()
-        - verbindungHerstellen(): void
-        + mainLoop(): void
-        - verarbeiteBefehl(befehl: String, argument: String[]): void
-        - wechselRaum(argument: String[]): void
-        - zeigeGeraete(raumName: String): void
-        - zeigeRaeume(): void
-        - schalteGeraet(argument: String[]): void
-        - zeigeHilfe(): void
-        + {static} main(args: String[]): void
-    }
-    
-    CLIClient ..> KonsoleDesign : nutzt >
 }
 
-CLIClient ..> SmartHomeService : nutzt via RMI >
+' Vererbungen und Implementierungen (shared)
+SmartDevice <|-- HeizungsThermostat
+Schaltbar <|.. HeizungsThermostat
+SmartDevice <|-- Jalousie
+SmartDevice <|-- Lichtschalter
+Schaltbar <|.. Lichtschalter
+
+' RMI-Schnittstellen-Vererbung
+java.rmi.Remote <|-- SmartHomeService
+
+' Aggregationen und Kompositionen
+Gebaeude "1" *-- "0..*" Raum : enthält >
+Raum "1" *-- "0..*" SmartDevice : enthält >
+
+' Server-Struktur mit RMI-Klassen
+java.rmi.server.UnicastRemoteObject <|-- SmartHomeServer
+SmartHomeService <|.. SmartHomeServer
+SmartHomeServer "1" --> "1" Gebaeude : verwaltet >
+SmartHomeServer "1" --> "1" PersistenzManager : nutzt >
+
+' Client-Verbindungen
+CLIClient "1" --> "1" SmartHomeService : kommuniziert über (RMI Stub) >
+CLIClient ..> KonsoleDesign : nutzt (Utility) >
+
+PersistenzManager ..> Gebaeude : speichert/lädt >
 
 @enduml

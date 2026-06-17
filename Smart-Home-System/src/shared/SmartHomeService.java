@@ -1,7 +1,4 @@
-package server;
-
-import shared.Gebaeude;
-import shared.Raum;
+package shared;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
