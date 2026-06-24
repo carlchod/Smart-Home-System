@@ -6,3 +6,7 @@ out/
 
 # VS Code Einstellungen (optional, aber oft besser wegzulassen)
 .vscode/
+
+# macOS Systemdateien
+.DS_Store
+**/.DS_Store
