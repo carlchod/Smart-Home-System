@@ -11,7 +11,7 @@ public class HeizungsThermostat extends SmartDevice implements Schaltbar {
     public HeizungsThermostat(String name, double zielTemperatur, double aktuelleTemperatur) {
         super(name);
         if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
-            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
+            throw new UngueltigeTemperaturException(zielTemperatur);
         }
         else {
             this.zielTemperatur = zielTemperatur;

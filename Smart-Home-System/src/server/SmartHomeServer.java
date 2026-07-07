@@ -38,6 +38,12 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             Registry registry = LocateRegistry.createRegistry(1099);
             registry.rebind("SmartHomeService", smhServer); // rebind() -> bind() um nicht zu überschreiben
             System.out.println("Smart Home Server gestartet und im RMI-Registry registriert.");
+
+            // User Story 2
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("\nAbbruchsignal empfangen! Fahre Server sicher herunter...");
+                smhServer.serverBeenden(); // Speichermethode aufrufen
+            }));
         } catch (Exception e) {
             System.err.println("Server-Fehler: " + e.getMessage());
             e.printStackTrace();
