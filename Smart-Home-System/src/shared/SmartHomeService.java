@@ -30,4 +30,18 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     String befehlAusfuehren(String raumName, String geraetName, String befehl, String wert) throws RemoteException;
+
+    /**
+     * Registriert einen Client für Updates vom Server.
+     * @param client
+     * @throws RemoteException
+     */
+    void registriereClient(SmartHomeCallback client) throws RemoteException;
+    
+    /**
+     * Meldet einen Client vom Server ab.
+     * @param client
+     * @throws RemoteException
+     */
+    void meldeClientAb(SmartHomeCallback client) throws RemoteException;
 }

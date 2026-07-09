@@ -6,12 +6,16 @@ import shared.Lichtschalter;
 import shared.Raum;
 import shared.Schaltbar;
 import shared.SmartDevice;
+import shared.SmartHomeCallback;
 import shared.SmartHomeService;
 
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeService {
     // Attribute
@@ -20,10 +24,13 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     private Gebaeude meinGebaeude;
     private final PersistenzManager persistenzManager;
 
+    private List<SmartHomeCallback> registrierteClients;
+
     // Konstruktor
     public SmartHomeServer() throws RemoteException {
         super();
         this.persistenzManager = new PersistenzManager();
+        this.registrierteClients = new ArrayList<>();
         this.meinGebaeude = persistenzManager.ladeGebaeude();
         if (meinGebaeude.getRaeume().isEmpty()) {
             initDummyData(); // Initialisiert Testdaten, wenn keine Daten vorhanden sind
@@ -59,6 +66,29 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         return this.meinGebaeude.getRaum(raumName);
     }
 
+    public void registriereClient(SmartHomeCallback client) throws RemoteException {
+        if (!registrierteClients.contains(client)) {
+            registrierteClients.add(client);
+            System.out.println("Info: Ein neuer Client hat sich für Updates registriert. (Gesamt: " + registrierteClients.size() + ")");
+        }
+    }
+
+    public void meldeClientAb(SmartHomeCallback client) throws RemoteException {
+        registrierteClients.remove(client);
+        System.out.println("Info: Ein Client hat sich abgemeldet.");
+    }
+    private void sendeUpdateAnAlle(String nachricht) {
+        // rückwärts iterieren, falls fehlerhafte Clients entfernt werden müssen
+        for (int i = registrierteClients.size() - 1; i >= 0; i--) {
+            try {
+                registrierteClients.get(i).empfangeUpdate(nachricht);
+            } catch (RemoteException e) {
+                // wenn der Client nicht mehr erreichbar (Terminal geschlossen ohne exit oder Verbbindungsabbruch):
+                System.out.println("Warnung: Client nicht erreichbar, wird aus der Liste entfernt.");
+                registrierteClients.remove(i);
+            }
+        }
+    }
     public String befehlAusfuehren(String raumName, String geraetName, String befehl, String wert) throws RemoteException {
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
@@ -83,6 +113,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             if (zielGeraet instanceof Schaltbar) {
                 Schaltbar schaltGeraet = (Schaltbar) zielGeraet;
                 schaltGeraet.schalte();
+                sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
                 return "Erfolg: " + zielGeraet.getName() + " im Raum '" + raumName + "' wurde geschaltet.\nNeuer Status: " + zielGeraet.getStatusAsString();
             } else {
                 return "Fehler: Das Gerät '" + geraetName + "' besitzt keinen Schalter.";
@@ -94,6 +125,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                     double temperatur = Double.parseDouble(wert);
                     HeizungsThermostat thermostat = (HeizungsThermostat) zielGeraet;
                     thermostat.setZielTemperatur(temperatur);
+                    sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
                     return "Erfolg: Temperatur für " + zielGeraet.getName() + " auf " + temperatur + "°C gesetzt.";
                 } catch (NumberFormatException e) {
                     return "Fehler: Ungültige Temperaturangabe.";

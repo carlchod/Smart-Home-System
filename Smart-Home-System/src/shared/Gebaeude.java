@@ -31,7 +31,12 @@ public class Gebaeude implements Serializable {
 
     public void addRaum(Raum raum) {
         if (raum != null && raum.getName() != null) {
-            this.raeume.put(raum.getName().toLowerCase(), raum);
+            String schluessel = raum.getName().toLowerCase();
+
+            if (this.raeume.containsKey(schluessel)) {
+                throw new RaumExistiertBereitsException(raum.getName());
+            }
+            this.raeume.put(schluessel, raum);
         }
     }
 
