@@ -61,7 +61,7 @@ public class CLIClient {
             scanner.close();
             return;
         }
-        
+
         druckeHeader("HAUPTMENÜ");
         System.out.println("Willkommen in Ihrem Smart Home CLI-Client!");
         System.out.println("Geben Sie 'help' ein, um eine Liste der verfügbaren Befehle zu erhalten.");
@@ -209,7 +209,7 @@ public class CLIClient {
             System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: schalte <gerätname>" + RESET);
             return;
         }
-        String antwort = serverStub.befehlAusfuehren(aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
+        String antwort = serverStub.befehlAusfuehren(meineRolle, aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
         if (antwort.startsWith("Erfolg")) {
             System.out.println(GREEN + BOLD + antwort + RESET);
         } else if (antwort.startsWith("Fehler")) {
@@ -247,7 +247,7 @@ public class CLIClient {
             return; // Abbruch: Server wird gar nicht erst kontaktiert
         }
 
-        String antwort = serverStub.befehlAusfuehren(aktuellerRaumKontext, geraetName, "set", wert);
+        String antwort = serverStub.befehlAusfuehren(meineRolle, aktuellerRaumKontext, geraetName, "set", wert);
         
         if (antwort.startsWith("Erfolg")) {
             System.out.println(GREEN + BOLD + antwort + RESET);
