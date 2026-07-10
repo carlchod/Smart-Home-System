@@ -1,6 +1,7 @@
 package client;
 
 import shared.Raum;
+import shared.Rolle;
 import shared.SmartDevice;
 import shared.SmartHomeService;
 
@@ -15,6 +16,7 @@ public class CLIClient {
     // Attribute
     private SmartHomeService serverStub;
     private String aktuellerRaumKontext = null; // sichert aktuellen Raum für Befehle; null -> Gebäude-Übersicht anzeigen
+    private Rolle meineRolle = Rolle.GAST; // standardmäßig immer Gast, bis Login erfolgreich war
 
     // Konstruktor
     public CLIClient() {
@@ -30,7 +32,7 @@ public class CLIClient {
         } catch (Exception e) {
             System.err.println("Fehler: Verbindung zum Smart Home Server fehlgeschlagen: " + e.getMessage());
             e.printStackTrace();
-            System.exit(1); // Beendet die Anwendung, wenn die Verbindung fehlschlägt
+            System.exit(1); // Beendet Anwendung, wenn die Verbindung fehlschlägt
         }
     }
 
@@ -38,6 +40,28 @@ public class CLIClient {
     public void mainLoop() {
         Scanner scanner = new Scanner(System.in);
         clearConsole();
+
+        System.out.print(YELLOW + "Bitte geben Sie das System-Passwort ein: " + RESET);
+        String passwort = scanner.nextLine();
+        
+        try {
+            this.meineRolle = serverStub.login(passwort);
+            
+            // NEU: Der harte Rausschmiss für Gäste!
+            if (this.meineRolle == Rolle.GAST) {
+                System.out.println(RED + BOLD + "Zugriff verweigert: Falsches oder leeres Passwort!" + RESET);
+                System.out.println("Der Client wird aus Sicherheitsgründen beendet.");
+                scanner.close();
+                return; // Beendet die mainLoop sofort -> Programm geht zu.
+            }
+            
+            System.out.println(GREEN + "Erfolgreich angemeldet als: " + BOLD + this.meineRolle + RESET + "\n");
+        } catch (RemoteException e) {
+            System.out.println(RED + "Netzwerkfehler beim Login. Client wird beendet." + RESET);
+            scanner.close();
+            return;
+        }
+        
         druckeHeader("HAUPTMENÜ");
         System.out.println("Willkommen in Ihrem Smart Home CLI-Client!");
         System.out.println("Geben Sie 'help' ein, um eine Liste der verfügbaren Befehle zu erhalten.");

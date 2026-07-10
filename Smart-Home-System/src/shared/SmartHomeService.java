@@ -29,7 +29,7 @@ public interface SmartHomeService extends Remote {
      * @return
      * @throws RemoteException
      */
-    String befehlAusfuehren(String raumName, String geraetName, String befehl, String wert) throws RemoteException;
+    String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException;
 
     /**
      * Registriert einen Client für Updates vom Server.
@@ -44,4 +44,12 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     void meldeClientAb(SmartHomeCallback client) throws RemoteException;
+
+    /**
+     * Überprüft das Passwort und gibt die entsprechende Rolle zurück.
+     * @param passwort
+     * @return
+     * @throws RemoteException
+     */
+    Rolle login(String passwort) throws RemoteException;
 }

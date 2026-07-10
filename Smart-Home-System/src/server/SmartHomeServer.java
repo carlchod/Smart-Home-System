@@ -4,6 +4,7 @@ import shared.Gebaeude;
 import shared.HeizungsThermostat;
 import shared.Lichtschalter;
 import shared.Raum;
+import shared.Rolle;
 import shared.Schaltbar;
 import shared.SmartDevice;
 import shared.SmartHomeCallback;
@@ -77,6 +78,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         registrierteClients.remove(client);
         System.out.println("Info: Ein Client hat sich abgemeldet.");
     }
+
     private void sendeUpdateAnAlle(String nachricht) {
         // rückwärts iterieren, falls fehlerhafte Clients entfernt werden müssen
         for (int i = registrierteClients.size() - 1; i >= 0; i--) {
@@ -89,7 +91,24 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             }
         }
     }
-    public String befehlAusfuehren(String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+
+    public Rolle login(String passwort) throws RemoteException {
+        if ("superadmin".equals(passwort)) {
+            return Rolle.ADMIN;
+        } else if ("bewohner".equals(passwort)) {
+            return Rolle.BEDIENER;
+        } else {
+            return Rolle.GAST; // falsches/leeres Passwort = Gast
+        }
+    }
+
+    public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+        befehl = befehl.toLowerCase();
+
+        if (rolle == Rolle.GAST) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Als GAST haben sie keine Berechtigung, Befehle auszuführen.";
+        }
+        
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
             return "Fehler: Raum '" + raumName + "' nicht gefunden.";

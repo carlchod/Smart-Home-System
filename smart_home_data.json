@@ -1,0 +1,23 @@
+{
+  "name": "mein smart home gebaude",
+  "raeume": {
+    "wohnzimmer": {
+      "name": "Wohnzimmer",
+      "geraete": [
+        {
+          "status": true,
+          "id": "b815e0c1-9bf5-49b6-ab31-0984a8574ad0",
+          "name": "wohnzimmer lichtschalter"
+        },
+        {
+          "zielTemperatur": 22.0,
+          "aktuelleTemperatur": 19.0,
+          "letzteZielTemperatur": 5.0,
+          "frostschutzmodus": false,
+          "id": "10990b47-f6c6-43b3-a287-5def5f3af688",
+          "name": "wohnzimmer heizungsthermostat"
+        }
+      ]
+    }
+  }
+}
