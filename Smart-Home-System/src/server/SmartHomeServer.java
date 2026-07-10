@@ -102,13 +102,26 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         }
     }
 
-    public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
-        befehl = befehl.toLowerCase();
-
-        if (rolle == Rolle.GAST) {
-            return "Sicherheits-Fehler: Zugriff verweigert! Als GAST haben sie keine Berechtigung, Befehle auszuführen.";
+    public String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException {
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Administratoren dürfen neue Räume anlegen.";
         }
-        
+
+        // Raum erstellen und einfügen
+        try {
+            Raum neuerRaum = new Raum(raumName);
+            this.meinGebaeude.addRaum(neuerRaum); 
+            // Die Methode addRaum wirft automatisch deine RaumExistiertBereitsException, 
+            // falls jemand versucht, ein zweites "Wohnzimmer" anzulegen!
+            
+            return "Erfolg: Der Raum '" + raumName + "' wurde erfolgreich angelegt.";
+        } catch (shared.RaumExistiertBereitsException e) {
+            return "Fehler: " + e.getMessage();
+        }
+    }
+
+    public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
             return "Fehler: Raum '" + raumName + "' nicht gefunden.";
@@ -154,7 +167,6 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                 return "Fehler: Für Heizungen ist nur der Befehl 'set <wert>' erlaubt.";
             }
         }
-
         return "Fehler: Unbekannter Befehl oder Gerätetyp.";
     }
 

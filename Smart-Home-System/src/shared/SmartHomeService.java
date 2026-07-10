@@ -52,4 +52,13 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     Rolle login(String passwort) throws RemoteException;
+
+    /**
+     * Fügt einen neuen Raum zum Gebäude hinzu, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @return
+     * @throws RemoteException
+     */
+    String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException;
 }

@@ -40,7 +40,7 @@ public class CLIClient {
     public void mainLoop() {
         Scanner scanner = new Scanner(System.in);
         clearConsole();
-
+        
         System.out.print(YELLOW + "Bitte geben Sie das System-Passwort ein: " + RESET);
         String passwort = scanner.nextLine();
         
@@ -61,7 +61,6 @@ public class CLIClient {
             scanner.close();
             return;
         }
-
         druckeHeader("HAUPTMENÜ");
         System.out.println("Willkommen in Ihrem Smart Home CLI-Client!");
         System.out.println("Geben Sie 'help' ein, um eine Liste der verfügbaren Befehle zu erhalten.");
@@ -136,6 +135,13 @@ public class CLIClient {
             case "set":
                 setzeGeraet(argument);
                 break;
+            case "mkdir":
+                erstelleRaum(argument);
+                break;
+            default:
+                System.out.println(RED + "Fehler: Unbekannter Befehl '" + befehl + "'." + RESET);
+                System.out.println("Tipp: Geben Sie 'help' ein, um eine Liste aller Befehle zu sehen.\n");
+                break;
         }
     }
 
@@ -209,7 +215,7 @@ public class CLIClient {
             System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: schalte <gerätname>" + RESET);
             return;
         }
-        String antwort = serverStub.befehlAusfuehren(meineRolle, aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
+        String antwort = serverStub.befehlAusfuehren(this.meineRolle, aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
         if (antwort.startsWith("Erfolg")) {
             System.out.println(GREEN + BOLD + antwort + RESET);
         } else if (antwort.startsWith("Fehler")) {
@@ -247,7 +253,7 @@ public class CLIClient {
             return; // Abbruch: Server wird gar nicht erst kontaktiert
         }
 
-        String antwort = serverStub.befehlAusfuehren(meineRolle, aktuellerRaumKontext, geraetName, "set", wert);
+        String antwort = serverStub.befehlAusfuehren(this.meineRolle, aktuellerRaumKontext, geraetName, "set", wert);
         
         if (antwort.startsWith("Erfolg")) {
             System.out.println(GREEN + BOLD + antwort + RESET);
@@ -260,14 +266,33 @@ public class CLIClient {
         }
     }
 
+    private void erstelleRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Raumname angegeben. Nutzung: mkdir <raumname>" + RESET);
+            return;
+        }
+        
+        String raumName = argument[1].trim();
+        String antwort = serverStub.raumHinzufuegen(this.meineRolle, raumName);
+        
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Sicherheits-Fehler")) {
+            System.out.println(RED + BG_GRAY + BOLD + " " + antwort + " " + RESET);
+        } else {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+    }
+
     private void zeigeHilfe() {
         druckeHeader("VERFÜGBARE BEFEHLE");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd <raum>", "Wechselt in einen Raum");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd ..", "Verlässt den aktuellen Raum");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "ls", "Listet alle Geräte im aktuellen Raum auf");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "schalte <gerätname>", "Schaltet ein Gerät an/aus");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "Setzt einen Wert");
-        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd <raum>", "[USER] Wechselt in einen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd ..", "[USER] Verlässt den aktuellen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "ls", "[USER] Listet alle Geräte im aktuellen Raum auf");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "schalte <gerätname>", "[USER] Schaltet ein Gerät an/aus");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "[USER] Setzt einen Wert");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "[USER] Beendet den Client");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkdir <raum>", "[ADMIN] Erstellt einen neuen Raum");
         druckeHeader("");
     }
 
