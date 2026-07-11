@@ -364,6 +364,9 @@ public class CLIClient {
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "[USER] Setzt einen Wert");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "[USER] Beendet den Client");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkdir <raum>", "[ADMIN] Erstellt einen neuen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmdir <raum>", "[ADMIN] Löscht einen Raum komplett");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkdev <typ> <name>", "[ADMIN] Baut ein neues Gerät im aktuellen Raum ein");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmdev <name>", "[ADMIN] Baut ein Gerät aus dem aktuellen Raum aus");
         druckeHeader("");
     }
 

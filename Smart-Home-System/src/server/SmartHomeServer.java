@@ -161,8 +161,12 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                 return "Fehler: Unbekannter Gerätetyp. Erlaubt sind: Heizung o. heizung, Licht o. licht, Jalousie o. jalousie.";
         }
 
-        raum.addGeraet(neuesGeraet);
-        return "Erfolg: Gerät '" + geraetName + "' (Typ: " + geraetTyp + ") im Raum '" + raumName + "' installiert.";
+        try {
+            raum.addGeraet(neuesGeraet);
+            return "Erfolg: Gerät '" + geraetName + "' (Typ: " + geraetTyp + ") im Raum '" + raumName + "' installiert.";
+        } catch (shared.GeraetExistiertBereitsException e) {
+            return e.getMessage(); 
+        }
     }
 
     public String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException {

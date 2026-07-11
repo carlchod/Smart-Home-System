@@ -28,7 +28,12 @@ public class Raum implements Serializable {
     }
 
     public void addGeraet(SmartDevice geraet) {
-        if (geraet != null) {
+        if (geraet != null && geraet.getName() != null) {
+            for (SmartDevice vorhandenesGeraet : this.geraete) {
+                if (vorhandenesGeraet.getName().equalsIgnoreCase(geraet.getName())) {
+                    throw new GeraetExistiertBereitsException(geraet.getName());
+                }
+            }
             this.geraete.add(geraet);
         }
     }
