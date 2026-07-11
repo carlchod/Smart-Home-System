@@ -280,6 +280,70 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         return "Fehler: Unbekannter Befehl oder Gerätetyp.";
     }
 
+    @Override
+    public String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException {
+        szeneName = szeneName.toLowerCase();
+        ServerLogger.log(rolle, "Aktiviert die Szene '" + szeneName + "'.");
+
+        int geaenderteGeraete = 0;
+
+        switch (szeneName) {
+            case "gute_nacht":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Lichtschalter) {
+                            shared.Lichtschalter licht = (shared.Lichtschalter) geraet;
+                            if (licht.getStatusAsBoolean()) { 
+                                licht.schalte(); // Wenn an, dann ausschalten
+                                geaenderteGeraete++;
+                            }
+                        } else if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(100.0); // 100% zu
+                            geaenderteGeraete++;
+                        } else if (geraet instanceof shared.HeizungsThermostat) {
+                            ((shared.HeizungsThermostat) geraet).setZielTemperatur(18.0);
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'Gute Nacht' aktiviert. Alle Lichter sind aus, Jalousien geschlossen, Heizungen auf 18°C abgesenkt (" + geaenderteGeraete + " Geräte angepasst).";
+
+            case "guten_morgen":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(0.0); // 0% ganz auf
+                            geaenderteGeraete++;
+                        } else if (geraet instanceof shared.HeizungsThermostat) {
+                            ((shared.HeizungsThermostat) geraet).setZielTemperatur(22.0);
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'Guten Morgen' aktiviert. Jalousien sind offen, Heizungen auf 22°C (" + geaenderteGeraete + " Geräte angepasst).";
+
+            case "panik":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Lichtschalter) {
+                            shared.Lichtschalter licht = (shared.Lichtschalter) geraet;
+                            if (!licht.getStatusAsBoolean()) { 
+                                licht.schalte(); // Wenn aus, dann einschalten
+                                geaenderteGeraete++;
+                            }
+                        } else if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(0.0); // Fluchtwege auf
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'PANIK' aktiviert! Volle Beleuchtung im ganzen Haus, Jalousien hochgefahren (" + geaenderteGeraete + " Geräte angepasst).";
+
+            default:
+                return "Fehler: Unbekannte Szene '" + szeneName + "'. Verfügbar sind: gute_nacht, guten_morgen, panik";
+        }
+    }
+
     public void serverBeenden() {
         System.out.println("Sichere Zustand vor dem Beenden...");
         persistenzManager.speichereGebaeude(meinGebaeude);

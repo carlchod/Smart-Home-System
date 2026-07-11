@@ -135,6 +135,9 @@ public class CLIClient {
             case "set":
                 setzeGeraet(argument);
                 break;
+            case "szene":
+                starteSzene(argument);
+                break;
             case "mkdir":
                 erstelleRaum(argument);
                 break;
@@ -273,6 +276,18 @@ public class CLIClient {
         else {
             System.out.println(antwort);
         }
+    }
+
+    private void starteSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Keine Szene angegeben. Nutzung: szene <name>" + RESET);
+            System.out.println("Verfügbare Szenen: gute_nacht, guten_morgen, panik");
+            return;
+        }
+        
+        String szeneName = argument[1].trim();
+        String antwort = serverStub.szeneAusfuehren(this.meineRolle, szeneName);
+        verarbeiteAntwortFarbig(antwort);
     }
 
     private void erstelleRaum(String[] argument) throws RemoteException {

@@ -91,4 +91,13 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException;
+
+    /**
+     * Führt eine Szene aus
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException;
 }
