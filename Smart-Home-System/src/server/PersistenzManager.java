@@ -17,7 +17,10 @@ public class PersistenzManager {
     // Attribute
     private static final String DATEI_NAME = "smart_home_data.json";
     
-    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private Gson gson = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(shared.SmartDevice.class, new SmartDeviceDeserializer())
+        .create();
 
     // Methoden
     public void speichereGebaeude(Gebaeude gebaeude) {

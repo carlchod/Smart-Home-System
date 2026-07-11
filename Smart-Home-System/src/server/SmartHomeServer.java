@@ -96,7 +96,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         Rolle rolle;
         if ("superadmin".equals(passwort)) {
             rolle = Rolle.ADMIN;
-        } else if ("bewohner".equals(passwort)) {
+        } else if ("bediener".equals(passwort)) {
             rolle = Rolle.BEDIENER;
         } else {
             rolle = Rolle.GAST; 
