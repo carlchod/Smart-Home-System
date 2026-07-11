@@ -236,6 +236,24 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                 return "Fehler: Für Heizungen ist nur der Befehl 'set <wert>' erlaubt.";
             }
         }
+        else if (zielGeraet instanceof shared.Jalousie) {
+            if (befehl.equals("set")) {
+                try {
+                    double prozent = Double.parseDouble(wert);
+                    shared.Jalousie jalousie = (shared.Jalousie) zielGeraet;
+                    
+                    jalousie.setOeffnungsGrad(prozent); 
+                    
+                    return "Erfolg: Jalousie '" + zielGeraet.getName() + "' auf " + prozent + "% gesetzt.";
+                } catch (NumberFormatException e) {
+                    return "Fehler: Ungültige Prozentangabe. Bitte geben Sie eine Zahl ein (z.B. 50.0).";
+                } catch (shared.UngueltigerProzentwertException e) {
+                    return "Fehler: " + e.getMessage();
+                }
+            } else {
+                return "Fehler: Für die Jalousie ist nur der Befehl 'set <wert>' erlaubt (z.B. set jalousie 50).";
+            }
+        }
         return "Fehler: Unbekannter Befehl oder Gerätetyp.";
     }
 
