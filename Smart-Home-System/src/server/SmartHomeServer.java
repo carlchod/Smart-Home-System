@@ -231,7 +231,33 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         befehl = befehl.toLowerCase();
 
         if (befehl.equals("toggle") || befehl.equals("schalte")) {
-            if (zielGeraet instanceof Schaltbar) {
+            if (zielGeraet instanceof shared.Lichtschalter) {
+                shared.Lichtschalter licht = (shared.Lichtschalter) zielGeraet;
+                
+                // prüfen ob "an" oder "aus" mitgegeben wurde
+                if (wert != null && !wert.trim().isEmpty()) {
+                    boolean zielZustand = wert.equalsIgnoreCase("an") || wert.equalsIgnoreCase("ein") || wert.equalsIgnoreCase("true");
+                    boolean anfrageAus = wert.equalsIgnoreCase("aus") || wert.equalsIgnoreCase("false");
+                    
+                    if (zielZustand || anfrageAus) {
+                        // nur schalten, wenn aktuelle Zustand != gewünschter Zustand
+                        if (licht.getStatusAsBoolean() != zielZustand) {
+                            licht.schalte();
+                            sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                        }
+                        return "Erfolg: Gerät '" + geraetName + "' wurde auf '" + (zielZustand ? "AN" : "AUS") + "' gesetzt.";
+                    } else {
+                        return "Fehler: Unbekannter Zustand '" + wert + "'. Erlaubt sind 'an' oder 'aus'.";
+                    }
+                } else {
+                    // klassisches Toggle
+                    licht.schalte();
+                    sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                    return "Erfolg: " + zielGeraet.getName() + " im Raum '" + raumName + "' wurde geschaltet.\nNeuer Status: " + zielGeraet.getStatusAsString();
+                }
+            } 
+            // Fallback für alle anderen normalen Schalter
+            else if (zielGeraet instanceof Schaltbar) {
                 Schaltbar schaltGeraet = (Schaltbar) zielGeraet;
                 schaltGeraet.schalte();
                 sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
@@ -280,7 +306,46 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         return "Fehler: Unbekannter Befehl oder Gerätetyp.";
     }
 
-    @Override
+    public String szeneErstellen(Rolle rolle, String szeneName) throws RemoteException {
+        if (rolle == Rolle.GAST) return "Sicherheits-Fehler: Gäste dürfen keine Szenen erstellen.";
+        
+        szeneName = szeneName.toLowerCase();
+        if (meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+            return "Fehler: Eine Szene mit dem Namen '" + szeneName + "' existiert bereits.";
+        }
+        
+        meinGebaeude.getBenutzerSzenen().put(szeneName, new java.util.ArrayList<>());
+        ServerLogger.log(rolle, "Hat die benutzerdefinierte Szene '" + szeneName + "' erstellt.");
+        return "Erfolg: Leere Szene '" + szeneName + "' angelegt. Nutze 'szene_add', um Aktionen hinzuzufügen.";
+    }
+
+    public String szeneAktionHinzufuegen(Rolle rolle, String szeneName, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+        if (rolle == Rolle.GAST) return "Sicherheits-Fehler: Gäste dürfen keine Szenen bearbeiten.";
+        
+        szeneName = szeneName.toLowerCase();
+        if (!meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+            return "Fehler: Die Szene '" + szeneName + "' existiert nicht.";
+        }
+        
+        // Befehl als simplen String speichern -> Delimiter: "|"
+        String aktion = raumName + "|" + geraetName + "|" + befehl + "|" + wert;
+        meinGebaeude.getBenutzerSzenen().get(szeneName).add(aktion);
+        
+        ServerLogger.log(rolle, "Hat eine Aktion zur Szene '" + szeneName + "' hinzugefügt.");
+        return "Erfolg: Die Aktion (" + befehl + " " + geraetName + ") wurde zur Szene '" + szeneName + "' hinzugefügt.";
+    }
+
+    public String szeneLoeschen(Rolle rolle, String szeneName) throws RemoteException {
+        szeneName = szeneName.toLowerCase();
+        
+        if (meinGebaeude.getBenutzerSzenen().remove(szeneName) != null) {
+            ServerLogger.log(rolle, "Hat die benutzerdefinierte Szene '" + szeneName + "' gelöscht.");
+            return "Erfolg: Szene '" + szeneName + "' wurde gelöscht.";
+        } else {
+            return "Fehler: Die Szene '" + szeneName + "' existiert nicht.";
+        }
+    }
+
     public String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException {
         szeneName = szeneName.toLowerCase();
         ServerLogger.log(rolle, "Aktiviert die Szene '" + szeneName + "'.");
@@ -340,7 +405,31 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
                 return "Erfolg: Szene 'PANIK' aktiviert! Volle Beleuchtung im ganzen Haus, Jalousien hochgefahren (" + geaenderteGeraete + " Geräte angepasst).";
 
             default:
-                return "Fehler: Unbekannte Szene '" + szeneName + "'. Verfügbar sind: gute_nacht, guten_morgen, panik";
+                // prüfen ob es Custom-Szene ist:
+                if (meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+                    java.util.List<String> aktionen = meinGebaeude.getBenutzerSzenen().get(szeneName);
+                    int count = 0;
+                    
+                    for (String aktion : aktionen) {
+                        String[] teile = aktion.split("\\|");
+                        String rName = teile[0];
+                        String gName = teile[1];
+                        String cmd = teile[2];
+                        String val = (teile.length > 3) ? teile[3] : ""; 
+                        
+                        // NEU: Wir fangen die Antwort ab und zählen nur bei Erfolg hoch!
+                        String antwort = befehlAusfuehren(rolle, rName, gName, cmd, val);
+                        if (antwort.startsWith("Erfolg")) {
+                            count++;
+                        } else {
+                            // Warnhinweis ausgeben
+                            System.out.println("Szene-Fehler bei Gerät '" + gName + "': " + antwort);
+                        }
+                    }
+                    return "Erfolg: Benutzerdefinierte Szene '" + szeneName + "' wurde ausgeführt (" + count + " von " + aktionen.size() + " Aktionen erfolgreich).";
+                }
+                
+                return "Fehler: Unbekannte Szene '" + szeneName + "'.";
         }
     }
 

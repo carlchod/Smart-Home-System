@@ -138,6 +138,15 @@ public class CLIClient {
             case "szene":
                 starteSzene(argument);
                 break;
+            case "mkszene":
+                erstelleCustomSzene(argument);
+                break;
+            case "szene_add":
+                fuegeSzeneAktionHinzu(argument);
+                break;
+            case "rmszene":
+                loescheSzene(argument);
+                break;
             case "mkdir":
                 erstelleRaum(argument);
                 break;
@@ -290,6 +299,73 @@ public class CLIClient {
         verarbeiteAntwortFarbig(antwort);
     }
 
+    private void erstelleCustomSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Name angegeben. Nutzung: mkszene <name>" + RESET);
+            return;
+        }
+        String antwort = serverStub.szeneErstellen(this.meineRolle, argument[1].trim());
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void fuegeSzeneAktionHinzu(String[] argument) throws RemoteException {
+        if (argument.length < 2) {
+            System.out.println(RED + "Fehler: Nutzung: szene_add <szene> <raum> <gerät> <schalte|set> [wert]" + RESET);
+            return;
+        }
+        
+        String[] teile = argument[1].trim().split("\\s+");
+        if (teile.length < 4) {
+            System.out.println(RED + "Fehler: Zu wenige Argumente. Nutzung: szene_add <szene> <raum> <gerät> <schalte|set> [wert]" + RESET);
+            return;
+        }
+        
+        String szene = teile[0];
+        String raum = teile[1];
+        
+        // von hinten nach Befehl ("schalte" oder "set" oder "toggle") suchen, weil sonst probleme mit geräte namen wegen leerzeichen
+        int cmdIndex = -1;
+        for (int i = teile.length - 1; i >= 2; i--) {
+            String wort = teile[i].toLowerCase();
+            if (wort.equals("schalte") || wort.equals("set") || wort.equals("toggle")) {
+                cmdIndex = i;
+                break;
+            }
+        }
+        
+        if (cmdIndex == -1 || cmdIndex == 2) {
+            System.out.println(RED + "Fehler: Konnte den Befehl (schalte/set) oder das Gerät nicht erkennen." + RESET);
+            return;
+        }
+        
+        // Gerätename aus allen Wörtern dazwischen zusammenbauen (z.B. "wohnzimmer" + "lichtschalter")
+        StringBuilder geraetBuilder = new StringBuilder();
+        for (int i = 2; i < cmdIndex; i++) {
+            geraetBuilder.append(teile[i]).append(" ");
+        }
+        String geraet = geraetBuilder.toString().trim();
+        
+        String befehl = teile[cmdIndex];
+
+        StringBuilder wertBuilder = new StringBuilder();
+        for (int i = cmdIndex + 1; i < teile.length; i++) {
+            wertBuilder.append(teile[i]).append(" ");
+        }
+        String wert = wertBuilder.toString().trim();
+        
+        String antwort = serverStub.szeneAktionHinzufuegen(this.meineRolle, szene, raum, geraet, befehl, wert);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void loescheSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Name angegeben. Nutzung: rmszene <name>" + RESET);
+            return;
+        }
+        String antwort = serverStub.szeneLoeschen(this.meineRolle, argument[1].trim());
+        verarbeiteAntwortFarbig(antwort);
+    }
+
     private void erstelleRaum(String[] argument) throws RemoteException {
         if (argument.length < 2 || argument[1].trim().isEmpty()) {
             System.out.println(RED + "Fehler: Kein Raumname angegeben. Nutzung: mkdir <raumname>" + RESET);
@@ -382,6 +458,9 @@ public class CLIClient {
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "help", "Zeigt dieses Hilfemenü an");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "szene <name>", "Aktiviert ein Smart-Home-Szenario (z.B. gute_nacht, panik)");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkszene <name>", "Erstellt eine neue, leere benutzerdefinierte Szene");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "szene_add <param>", "Fügt Aktion hinzu (Format: szene_add <szene> <raum> <gerät> <schalte|set> [wert])");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmszene <name>", "Löscht eine benutzerdefinierte Szene");
 
         // Sichtbar: ADMIN
         if (this.meineRolle == Rolle.ADMIN) {

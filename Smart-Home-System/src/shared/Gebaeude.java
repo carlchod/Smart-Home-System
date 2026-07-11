@@ -2,6 +2,8 @@ package shared;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Gebaeude implements Serializable {
     // Attribute
@@ -11,14 +13,25 @@ public class Gebaeude implements Serializable {
     // Aufbau: [[Raum1 Name: Raum-Objekt1],
     //          [Raum2 Name: Raum-Objekt2]...]
     private HashMap<String, Raum> raeume;
+
+    //Aufbau: [[Benutzername1: [Szenenname1, Szenenname2, ...]],
+    //          [Benutzername2: [Szenenname1, Szenenname2, ...]]...]
+    private HashMap<String, List<String>> benutzerSzenen;
     
     // Konstruktor
     public Gebaeude(String name){
         this.name = name.toLowerCase();
         this.raeume = new HashMap<>();
+        this.benutzerSzenen = new HashMap<>();
     }
 
     // Methoden
+    public HashMap<String, List<String>> getBenutzerSzenen() {
+        if (this.benutzerSzenen == null) {
+            this.benutzerSzenen = new HashMap<>();
+        }
+        return this.benutzerSzenen;
+    }
     
     // Getter und Setter
     public void setName(String name) {

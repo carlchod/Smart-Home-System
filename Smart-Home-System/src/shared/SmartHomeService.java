@@ -100,4 +100,35 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException;
+
+    /**
+     * Erstellt eine neue Szene.
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneErstellen(Rolle rolle, String szeneName) throws RemoteException;
+
+    /**
+     * Fügt eine Aktion zu einer Szene hinzu.
+     * @param rolle
+     * @param szeneName
+     * @param raumName
+     * @param geraetName
+     * @param befehl
+     * @param wert
+     * @return
+     * @throws RemoteException
+     */
+    String szeneAktionHinzufuegen(Rolle rolle, String szeneName, String raumName, String geraetName, String befehl, String wert) throws RemoteException;
+
+    /**
+     * Löscht eine Szene.
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneLoeschen(Rolle rolle, String szeneName) throws RemoteException;
 }
