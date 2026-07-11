@@ -1,0 +1,40 @@
+.
+├── folder_structure.txt
+├── out
+│   └── UML-Klassendiagramm
+│       └── UML-Klassendiagramm.png
+├── README.md
+├── Smart-Home-System
+│   ├── lib
+│   │   └── gson-2.14.0.jar
+│   └── src
+│       ├── client
+│       │   ├── CLIClient.java
+│       │   └── KonsoleDesign.java
+│       ├── server
+│       │   ├── PersistenzManager.java
+│       │   ├── ServerLogger.java
+│       │   ├── SmartDeviceDeserializer.java
+│       │   └── SmartHomeServer.java
+│       └── shared
+│           ├── Admin.java
+│           ├── Gebaeude.java
+│           ├── GeraetExistiertBereitsException.java
+│           ├── HeizungsThermostat.java
+│           ├── Jalousie.java
+│           ├── Lichtschalter.java
+│           ├── Rauchmelder.java
+│           ├── Raum.java
+│           ├── RaumExistiertBereitsException.java
+│           ├── Rolle.java
+│           ├── Schaltbar.java
+│           ├── SensorDevice.java
+│           ├── SmartDevice.java
+│           ├── SmartHomeCallback.java
+│           ├── SmartHomeService.java
+│           ├── Thermometer.java
+│           ├── UngueltigerProzentwertException.java
+│           └── UngueltigeTemperaturException.java
+└── UML-Klassendiagramm.puml
+
+9 directories, 29 files

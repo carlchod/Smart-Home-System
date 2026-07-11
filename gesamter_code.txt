@@ -1,0 +1,1723 @@
+Sa. 11.07.2026 23:30
+--- ./Smart-Home-System/src/server/PersistenzManager.java ---
+package server;
+
+import shared.Gebaeude;
+
+// Gson von Google genutzt
+// wird viel verwendet und wir wollten nicht auf Maven oder Gradle umsteigen
+// daher hier die externe Bibliothek als JAR-Datei im Projektordner lib
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class PersistenzManager {
+    // Attribute
+    private static final String DATEI_NAME = "smart_home_data.json";
+    
+    private Gson gson = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(shared.SmartDevice.class, new SmartDeviceDeserializer())
+        .create();
+
+    // Methoden
+    public void speichereGebaeude(Gebaeude gebaeude) {
+        try (FileWriter writer = new FileWriter(DATEI_NAME)) {
+            gson.toJson(gebaeude, writer);
+            System.out.println("Erfolg: Systemzustand erfolgreich in '" + DATEI_NAME + "' gespeichert.");
+        } catch (IOException e) {
+            System.err.println("Fehler: Speichern des Systemzustands in '" + DATEI_NAME + "' fehlgeschlagen: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public Gebaeude ladeGebaeude() {
+        File datei = new File(DATEI_NAME);
+        if (!datei.exists()) {
+            System.out.println("Info: Keine gespeicherten JSON-Daten gefunden. Es wird ein neues Gebäude erstellt.");
+            return new Gebaeude("leer"); 
+        }
+
+        try (FileReader reader = new FileReader(datei)) {
+            Gebaeude gebaeude = gson.fromJson(reader, Gebaeude.class);
+            System.out.println("Erfolg: Systemzustand erfolgreich aus '" + DATEI_NAME + "' geladen.");
+            return gebaeude;
+        } catch (IOException e) {
+            System.err.println("Fehler: Laden des Systemzustands aus '" + DATEI_NAME + "' fehlgeschlagen: " + e.getMessage());
+            e.printStackTrace();
+            return new Gebaeude("leer"); 
+        }
+    }
+}
+
+--- ./Smart-Home-System/src/server/ServerLogger.java ---
+package server;
+
+import shared.Rolle;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+public class ServerLogger {
+    private static final String LOG_FILE = "server_audit.log";
+    // Format
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    public static void log(Rolle rolle, String aktion) {
+        String zeitstempel = LocalDateTime.now().format(FORMATTER);
+        
+        // Format: [ZEIT] [ROLLE] AKTION
+        String logEintrag = String.format("[%s] [%s] %s", zeitstempel, rolle.name(), aktion);
+        
+        System.out.println(logEintrag); // in Konsole ausgeben
+        
+        // in txt Datei schreiben
+        try (PrintWriter writer = new PrintWriter(new FileWriter(LOG_FILE, true))) {
+            writer.println(logEintrag);
+        } catch (IOException e) {
+            System.err.println("Fehler beim Schreiben der Log-Datei: " + e.getMessage());
+        }
+    }
+}
+
+--- ./Smart-Home-System/src/server/SmartHomeServer.java ---
+package server;
+
+import shared.Gebaeude;
+import shared.HeizungsThermostat;
+import shared.Lichtschalter;
+import shared.Raum;
+import shared.Rolle;
+import shared.Schaltbar;
+import shared.SmartDevice;
+import shared.SmartHomeCallback;
+import shared.SmartHomeService;
+
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeService {
+    // Attribute
+    private static final long serialVersionUID = 1L;
+
+    private Gebaeude meinGebaeude;
+    private final PersistenzManager persistenzManager;
+
+    private List<SmartHomeCallback> registrierteClients;
+
+    // Konstruktor
+    public SmartHomeServer() throws RemoteException {
+        super();
+        this.persistenzManager = new PersistenzManager();
+        this.registrierteClients = new ArrayList<>();
+        this.meinGebaeude = persistenzManager.ladeGebaeude();
+        if (meinGebaeude.getRaeume().isEmpty()) {
+            initDummyData(); // Initialisiert Testdaten, wenn keine Daten vorhanden sind
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            System.setProperty("java.rmi.server.hostname", "127.0.0.1");
+
+            SmartHomeServer smhServer = new SmartHomeServer();
+            Registry registry = LocateRegistry.createRegistry(1099);
+            registry.rebind("SmartHomeService", smhServer); // rebind() -> bind() um nicht zu überschreiben
+            System.out.println("Smart Home Server gestartet und im RMI-Registry registriert.");
+
+            // User Story 2
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("\nAbbruchsignal empfangen! Fahre Server sicher herunter...");
+                smhServer.serverBeenden(); // Speichermethode aufrufen
+            }));
+        } catch (Exception e) {
+            System.err.println("Server-Fehler: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // Methoden
+    public Gebaeude getGebaeude() throws RemoteException {
+        return meinGebaeude;
+    }
+
+    public Raum getRaum(String raumName) throws RemoteException {
+        return this.meinGebaeude.getRaum(raumName);
+    }
+
+    public void registriereClient(SmartHomeCallback client) throws RemoteException {
+        if (!registrierteClients.contains(client)) {
+            registrierteClients.add(client);
+            System.out.println("Info: Ein neuer Client hat sich für Updates registriert. (Gesamt: " + registrierteClients.size() + ")");
+        }
+    }
+
+    public void meldeClientAb(SmartHomeCallback client) throws RemoteException {
+        registrierteClients.remove(client);
+        System.out.println("Info: Ein Client hat sich abgemeldet.");
+    }
+
+    private void sendeUpdateAnAlle(String nachricht) {
+        // rückwärts iterieren, falls fehlerhafte Clients entfernt werden müssen
+        for (int i = registrierteClients.size() - 1; i >= 0; i--) {
+            try {
+                registrierteClients.get(i).empfangeUpdate(nachricht);
+            } catch (RemoteException e) {
+                // wenn der Client nicht mehr erreichbar (Terminal geschlossen ohne exit oder Verbbindungsabbruch):
+                System.out.println("Warnung: Client nicht erreichbar, wird aus der Liste entfernt.");
+                registrierteClients.remove(i);
+            }
+        }
+    }
+
+    public Rolle login(String passwort) throws RemoteException {
+        Rolle rolle;
+        if ("superadmin".equals(passwort)) {
+            rolle = Rolle.ADMIN;
+        } else if ("bediener".equals(passwort)) {
+            rolle = Rolle.BEDIENER;
+        } else {
+            rolle = Rolle.GAST; 
+        }
+
+        ServerLogger.log(rolle, "Ein Benutzer hat sich angemeldet.");
+        return rolle;
+    }
+
+    public String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht den Raum '" + raumName + "' zu erstellen.");
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Administratoren dürfen neue Räume anlegen.";
+        }
+
+        // Raum erstellen und einfügen
+        try {
+            Raum neuerRaum = new Raum(raumName);
+            this.meinGebaeude.addRaum(neuerRaum); 
+            // Die Methode addRaum wirft automatisch deine RaumExistiertBereitsException, 
+            // falls jemand versucht, ein zweites "Wohnzimmer" anzulegen!
+            
+            return "Erfolg: Der Raum '" + raumName + "' wurde erfolgreich angelegt.";
+        } catch (shared.RaumExistiertBereitsException e) {
+            return "Fehler: " + e.getMessage();
+        }
+    }
+
+    public String raumLoeschen(Rolle rolle, String raumName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht den Raum '" + raumName + "' zu löschen.");
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Räume löschen.";
+        }
+        
+        if (this.meinGebaeude.getRaeume().remove(raumName.toLowerCase()) != null) { // HashMap.remove gibt null zurück, wenn der Schlüssel existierte
+            return "Erfolg: Der Raum '" + raumName + "' wurde unwiderruflich gelöscht.";
+        } else {
+            return "Fehler: Ein Raum mit dem Namen '" + raumName + "' wurde nicht gefunden.";
+        }
+    }
+
+    public String geraetHinzufuegen(Rolle rolle, String raumName, String geraetTyp, String geraetName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht das Gerät '" + geraetName + "' (" + geraetTyp + ") im Raum '" + raumName + "' zu installieren.");
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte installieren.";
+        }
+        
+        Raum raum = this.meinGebaeude.getRaum(raumName);
+        if (raum == null) {
+            return "Fehler: Der Raum '" + raumName + "' existiert nicht.";
+        }
+
+        shared.SmartDevice neuesGeraet;
+        // Factory für mögliche Gerätetypen
+        switch (geraetTyp.toLowerCase()) {
+            case "Heizung", "heizung":
+                neuesGeraet = new shared.HeizungsThermostat(geraetName, 20.0); // Standard: 20 Grad
+                break;
+            case "Licht", "licht":
+                neuesGeraet = new shared.Lichtschalter(geraetName);
+                break;
+            case "Jalousie", "jalousie":
+                neuesGeraet = new shared.Jalousie(geraetName);
+                break;
+            case "Thermometer", "thermometer":
+                neuesGeraet = new shared.Thermometer(geraetName);
+                break;
+            case "Rauchmelder", "rauchmelder":
+                neuesGeraet = new shared.Rauchmelder(geraetName);
+                break;
+            default:
+                return "Fehler: Unbekannter Gerätetyp. Erlaubt sind: Heizung o. heizung, Licht o. licht, Jalousie o. jalousie.";
+        }
+
+        try {
+            raum.addGeraet(neuesGeraet);
+            return "Erfolg: Gerät '" + geraetName + "' (Typ: " + geraetTyp + ") im Raum '" + raumName + "' installiert.";
+        } catch (shared.GeraetExistiertBereitsException e) {
+            return e.getMessage(); 
+        }
+    }
+
+    public String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht das Gerät '" + geraetName + "' im Raum '" + raumName + "' zu entfernen.");
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte entfernen.";
+        }
+
+        Raum raum = this.meinGebaeude.getRaum(raumName);
+        if (raum == null) {
+            return "Fehler: Der Raum '" + raumName + "' existiert nicht.";
+        }
+
+        // entfernt Gerät anhand des Namens (case insensitive)
+        boolean entfernt = raum.getGeraete().removeIf(g -> g.getName().equalsIgnoreCase(geraetName));
+        
+        if (entfernt) {
+            return "Erfolg: Das Gerät '" + geraetName + "' wurde aus dem Raum entfernt.";
+        } else {
+            return "Fehler: Ein Gerät mit dem Namen '" + geraetName + "' wurde im Raum nicht gefunden.";
+        }
+    }
+
+    public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+        if (befehl.equals("set")) {
+            ServerLogger.log(rolle, "Versucht '" + geraetName + "' in '" + raumName + "' auf den Wert '" + wert + "' zu setzen.");
+        } else {
+            ServerLogger.log(rolle, "Versucht '" + geraetName + "' in '" + raumName + "' zu schalten (Befehl: " + befehl + ").");
+        }
+        
+        Raum raum = meinGebaeude.getRaum(raumName);
+        if (raum == null) {
+            return "Fehler: Raum '" + raumName + "' nicht gefunden.";
+        }
+
+        SmartDevice zielGeraet = null;
+        for (SmartDevice geraet : raum.getGeraete()) {
+            if (geraet.getName().equalsIgnoreCase(geraetName)) {
+                zielGeraet = geraet;
+                break; // Gerät gefunden -> Schleife verlassen
+            }
+        }
+
+        if (zielGeraet == null) {
+            return "Fehler: Gerät '" + geraetName + "' wurde im Raum '" + raumName + "' nicht gefunden.";
+        }
+
+        befehl = befehl.toLowerCase();
+
+        if (befehl.equals("toggle") || befehl.equals("schalte")) {
+            if (zielGeraet instanceof shared.Lichtschalter) {
+                shared.Lichtschalter licht = (shared.Lichtschalter) zielGeraet;
+                
+                // prüfen ob "an" oder "aus" mitgegeben wurde
+                if (wert != null && !wert.trim().isEmpty()) {
+                    boolean zielZustand = wert.equalsIgnoreCase("an") || wert.equalsIgnoreCase("ein") || wert.equalsIgnoreCase("true");
+                    boolean anfrageAus = wert.equalsIgnoreCase("aus") || wert.equalsIgnoreCase("false");
+                    
+                    if (zielZustand || anfrageAus) {
+                        // nur schalten, wenn aktuelle Zustand != gewünschter Zustand
+                        if (licht.getStatusAsBoolean() != zielZustand) {
+                            licht.schalte();
+                            sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                        }
+                        return "Erfolg: Gerät '" + geraetName + "' wurde auf '" + (zielZustand ? "AN" : "AUS") + "' gesetzt.";
+                    } else {
+                        return "Fehler: Unbekannter Zustand '" + wert + "'. Erlaubt sind 'an' oder 'aus'.";
+                    }
+                } else {
+                    // klassisches Toggle
+                    licht.schalte();
+                    sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                    return "Erfolg: " + zielGeraet.getName() + " im Raum '" + raumName + "' wurde geschaltet.\nNeuer Status: " + zielGeraet.getStatusAsString();
+                }
+            } 
+            // Fallback für alle anderen normalen Schalter
+            else if (zielGeraet instanceof Schaltbar) {
+                Schaltbar schaltGeraet = (Schaltbar) zielGeraet;
+                schaltGeraet.schalte();
+                sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                return "Erfolg: " + zielGeraet.getName() + " im Raum '" + raumName + "' wurde geschaltet.\nNeuer Status: " + zielGeraet.getStatusAsString();
+            } else {
+                return "Fehler: Das Gerät '" + geraetName + "' besitzt keinen Schalter.";
+            }
+        }
+        else if (zielGeraet instanceof shared.SensorDevice) {
+            return "Sicherheits-Fehler: Das Gerät '" + zielGeraet.getName() + "' ist ein Sensor. Sensoren messen nur Daten und können nicht manuell gesteuert werden!";
+        }
+        else if (zielGeraet instanceof HeizungsThermostat) {
+            if (befehl.equals("set")) {
+                try {
+                    double temperatur = Double.parseDouble(wert);
+                    HeizungsThermostat thermostat = (HeizungsThermostat) zielGeraet;
+                    thermostat.setZielTemperatur(temperatur);
+                    sendeUpdateAnAlle("Live-Update: " + zielGeraet.getName() + " wurde soeben geschaltet!");
+                    return "Erfolg: Temperatur für " + zielGeraet.getName() + " auf " + temperatur + "°C gesetzt.";
+                } catch (NumberFormatException e) {
+                    return "Fehler: Ungültige Temperaturangabe.";
+                }
+            }
+            else {
+                return "Fehler: Für Heizungen ist nur der Befehl 'set <wert>' erlaubt.";
+            }
+        }
+        else if (zielGeraet instanceof shared.Jalousie) {
+            if (befehl.equals("set")) {
+                try {
+                    double prozent = Double.parseDouble(wert);
+                    shared.Jalousie jalousie = (shared.Jalousie) zielGeraet;
+                    
+                    jalousie.setOeffnungsGrad(prozent); 
+                    
+                    return "Erfolg: Jalousie '" + zielGeraet.getName() + "' auf " + prozent + "% gesetzt.";
+                } catch (NumberFormatException e) {
+                    return "Fehler: Ungültige Prozentangabe. Bitte geben Sie eine Zahl ein (z.B. 50.0).";
+                } catch (shared.UngueltigerProzentwertException e) {
+                    return "Fehler: " + e.getMessage();
+                }
+            } else {
+                return "Fehler: Für die Jalousie ist nur der Befehl 'set <wert>' erlaubt (z.B. set jalousie 50).";
+            }
+        }
+        return "Fehler: Unbekannter Befehl oder Gerätetyp.";
+    }
+
+    public String szeneErstellen(Rolle rolle, String szeneName) throws RemoteException {
+        if (rolle == Rolle.GAST) return "Sicherheits-Fehler: Gäste dürfen keine Szenen erstellen.";
+        
+        szeneName = szeneName.toLowerCase();
+        if (meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+            return "Fehler: Eine Szene mit dem Namen '" + szeneName + "' existiert bereits.";
+        }
+        
+        meinGebaeude.getBenutzerSzenen().put(szeneName, new java.util.ArrayList<>());
+        ServerLogger.log(rolle, "Hat die benutzerdefinierte Szene '" + szeneName + "' erstellt.");
+        return "Erfolg: Leere Szene '" + szeneName + "' angelegt. Nutze 'szene_add', um Aktionen hinzuzufügen.";
+    }
+
+    public String szeneAktionHinzufuegen(Rolle rolle, String szeneName, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+        if (rolle == Rolle.GAST) return "Sicherheits-Fehler: Gäste dürfen keine Szenen bearbeiten.";
+        
+        szeneName = szeneName.toLowerCase();
+        if (!meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+            return "Fehler: Die Szene '" + szeneName + "' existiert nicht.";
+        }
+        
+        // Befehl als simplen String speichern -> Delimiter: "|"
+        String aktion = raumName + "|" + geraetName + "|" + befehl + "|" + wert;
+        meinGebaeude.getBenutzerSzenen().get(szeneName).add(aktion);
+        
+        ServerLogger.log(rolle, "Hat eine Aktion zur Szene '" + szeneName + "' hinzugefügt.");
+        return "Erfolg: Die Aktion (" + befehl + " " + geraetName + ") wurde zur Szene '" + szeneName + "' hinzugefügt.";
+    }
+
+    public String szeneLoeschen(Rolle rolle, String szeneName) throws RemoteException {
+        szeneName = szeneName.toLowerCase();
+        
+        if (meinGebaeude.getBenutzerSzenen().remove(szeneName) != null) {
+            ServerLogger.log(rolle, "Hat die benutzerdefinierte Szene '" + szeneName + "' gelöscht.");
+            return "Erfolg: Szene '" + szeneName + "' wurde gelöscht.";
+        } else {
+            return "Fehler: Die Szene '" + szeneName + "' existiert nicht.";
+        }
+    }
+
+    public String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException {
+        szeneName = szeneName.toLowerCase();
+        ServerLogger.log(rolle, "Aktiviert die Szene '" + szeneName + "'.");
+
+        int geaenderteGeraete = 0;
+
+        switch (szeneName) {
+            case "gute_nacht":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Lichtschalter) {
+                            shared.Lichtschalter licht = (shared.Lichtschalter) geraet;
+                            if (licht.getStatusAsBoolean()) { 
+                                licht.schalte(); // Wenn an, dann ausschalten
+                                geaenderteGeraete++;
+                            }
+                        } else if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(100.0); // 100% zu
+                            geaenderteGeraete++;
+                        } else if (geraet instanceof shared.HeizungsThermostat) {
+                            ((shared.HeizungsThermostat) geraet).setZielTemperatur(18.0);
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'Gute Nacht' aktiviert. Alle Lichter sind aus, Jalousien geschlossen, Heizungen auf 18°C abgesenkt (" + geaenderteGeraete + " Geräte angepasst).";
+
+            case "guten_morgen":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(0.0); // 0% ganz auf
+                            geaenderteGeraete++;
+                        } else if (geraet instanceof shared.HeizungsThermostat) {
+                            ((shared.HeizungsThermostat) geraet).setZielTemperatur(22.0);
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'Guten Morgen' aktiviert. Jalousien sind offen, Heizungen auf 22°C (" + geaenderteGeraete + " Geräte angepasst).";
+
+            case "panik":
+                for (shared.Raum raum : meinGebaeude.getRaeume().values()) {
+                    for (shared.SmartDevice geraet : raum.getGeraete()) {
+                        if (geraet instanceof shared.Lichtschalter) {
+                            shared.Lichtschalter licht = (shared.Lichtschalter) geraet;
+                            if (!licht.getStatusAsBoolean()) { 
+                                licht.schalte(); // Wenn aus, dann einschalten
+                                geaenderteGeraete++;
+                            }
+                        } else if (geraet instanceof shared.Jalousie) {
+                            ((shared.Jalousie) geraet).setOeffnungsGrad(0.0); // Fluchtwege auf
+                            geaenderteGeraete++;
+                        }
+                    }
+                }
+                return "Erfolg: Szene 'PANIK' aktiviert! Volle Beleuchtung im ganzen Haus, Jalousien hochgefahren (" + geaenderteGeraete + " Geräte angepasst).";
+
+            default:
+                // prüfen ob es Custom-Szene ist:
+                if (meinGebaeude.getBenutzerSzenen().containsKey(szeneName)) {
+                    java.util.List<String> aktionen = meinGebaeude.getBenutzerSzenen().get(szeneName);
+                    int count = 0;
+                    
+                    for (String aktion : aktionen) {
+                        String[] teile = aktion.split("\\|");
+                        String rName = teile[0];
+                        String gName = teile[1];
+                        String cmd = teile[2];
+                        String val = (teile.length > 3) ? teile[3] : ""; 
+                        
+                        // NEU: Wir fangen die Antwort ab und zählen nur bei Erfolg hoch!
+                        String antwort = befehlAusfuehren(rolle, rName, gName, cmd, val);
+                        if (antwort.startsWith("Erfolg")) {
+                            count++;
+                        } else {
+                            // Warnhinweis ausgeben
+                            System.out.println("Szene-Fehler bei Gerät '" + gName + "': " + antwort);
+                        }
+                    }
+                    return "Erfolg: Benutzerdefinierte Szene '" + szeneName + "' wurde ausgeführt (" + count + " von " + aktionen.size() + " Aktionen erfolgreich).";
+                }
+                
+                return "Fehler: Unbekannte Szene '" + szeneName + "'.";
+        }
+    }
+
+    public void serverBeenden() {
+        System.out.println("Sichere Zustand vor dem Beenden...");
+        persistenzManager.speichereGebaeude(meinGebaeude);
+    }
+
+    private void initDummyData() {
+        // Test Daten für Live Demo
+        // 1. Gebäude instanzieren
+        this.meinGebaeude = new Gebaeude("Mein Smart Home Gebaude");
+        // 2. Räume instanzieren
+        Raum meinRaum = new Raum("Wohnzimmer");
+        // 3. Geräte instanzieren
+        Lichtschalter meinLichtschalter = new Lichtschalter("Wohnzimmer Lichtschalter");
+        HeizungsThermostat meinHeizungsThermostat = new HeizungsThermostat("Wohnzimmer Heizungsthermostat", 22.0, 19.0);
+        // 4. Geräte zu Räumen hinzufügen
+        meinRaum.addGeraet(meinLichtschalter);
+        meinRaum.addGeraet(meinHeizungsThermostat);
+        // 5. Räume zu Gebäude hinzufügen
+        meinGebaeude.addRaum(meinRaum);
+    }
+}
+
+--- ./Smart-Home-System/src/server/SmartDeviceDeserializer.java ---
+package server;
+
+import com.google.gson.*;
+import shared.*;
+
+import java.lang.reflect.Type;
+
+public class SmartDeviceDeserializer implements JsonDeserializer<SmartDevice> {
+    
+    @Override
+    public SmartDevice deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        JsonObject jsonObject = json.getAsJsonObject();
+
+        // Wir prüfen, welche Felder im JSON existieren, um den Typ zu erraten
+        if (jsonObject.has("zielTemperatur")) {
+            return context.deserialize(jsonObject, HeizungsThermostat.class);
+        } else if (jsonObject.has("status")) {
+            return context.deserialize(jsonObject, Lichtschalter.class);
+        } else if (jsonObject.has("oeffnungsGrad")) {
+            return context.deserialize(jsonObject, Jalousie.class);
+        } else if (jsonObject.has("basisTemperatur")) {
+            return context.deserialize(jsonObject, Thermometer.class);
+        } else if (jsonObject.has("alarmAktiv")) {
+            return context.deserialize(jsonObject, Rauchmelder.class);
+        }
+
+        throw new JsonParseException("Unbekannter Gerätetyp im JSON gefunden!");
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Jalousie.java ---
+package shared;
+
+public class Jalousie extends SmartDevice {
+    // Attribute
+    private double oeffnungsGrad; // 0.0 = offen, 100.0 = geschlossen
+
+    // Konstruktor
+    public Jalousie(String name) {
+        super(name);
+        this.oeffnungsGrad = 0.0; // standardmäßig ganz offen
+    }
+
+    // Getter und Setter
+    public void setOeffnungsGrad(double oeffnungsGrad) {
+        if (oeffnungsGrad < 0.0 || oeffnungsGrad > 100.0) {
+            throw new UngueltigerProzentwertException(oeffnungsGrad);
+        }
+        this.oeffnungsGrad = oeffnungsGrad;
+    }
+
+    public double getOeffnungsGrad() {
+        return this.oeffnungsGrad;
+    }
+
+    public String getStatusAsString() {
+        if (oeffnungsGrad == 0.0) {
+            return "[=] Geöffnet (0.0%)";
+        } else if (oeffnungsGrad == 100.0) {
+            return "[|] Geschlossen (100.0%)";
+        } else {
+            return "[/] Halb offen (" + oeffnungsGrad + "%)";
+        }
+    }
+}
+
+--- ./Smart-Home-System/src/shared/SensorDevice.java ---
+package shared;
+
+public abstract class SensorDevice extends SmartDevice {
+    public SensorDevice(String name) {
+        super(name);
+    }
+}
+
+
+--- ./Smart-Home-System/src/shared/HeizungsThermostat.java ---
+package shared;
+
+public class HeizungsThermostat extends SmartDevice implements Schaltbar {
+    // Attribute
+    private double zielTemperatur;
+    private double aktuelleTemperatur;
+    private double letzteZielTemperatur = 5.0;
+    private boolean frostschutzmodus = true; // Standardmäßig im Frostschutzmodus
+
+    // Konstruktor
+    public HeizungsThermostat(String name, double zielTemperatur, double aktuelleTemperatur) {
+        super(name);
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new UngueltigeTemperaturException(zielTemperatur);
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+            this.frostschutzmodus = false;
+        }
+        this.aktuelleTemperatur = aktuelleTemperatur;
+    }
+
+    public HeizungsThermostat(String name, double zielTemperatur) {
+        super(name);
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+            this.frostschutzmodus = false;
+        }
+    }
+
+    // Methoden
+    public void schalte() {
+        if (frostschutzmodus) {
+            setZielTemperatur(letzteZielTemperatur);
+        }
+        else {
+            letzteZielTemperatur = zielTemperatur;
+            setZielTemperatur(5.0);
+        }
+    }
+
+    public void waermer() {
+        if (zielTemperatur + 0.5 <= 30.0) {
+            setZielTemperatur(zielTemperatur + 0.5);
+        }
+        if (frostschutzmodus) {
+            frostschutzmodus = !frostschutzmodus;
+        }
+    }
+
+    public void kuehler() {
+        if (zielTemperatur - 0.5 >= 5.0) {
+            setZielTemperatur(zielTemperatur - 0.5);
+        }
+    }
+
+    public boolean getStatusAsBoolean() {
+        return frostschutzmodus;
+    }
+
+    public String getStatusAsString() {
+        String heizStatus;
+        if (this.zielTemperatur <= 5.0) {
+            heizStatus = "[AUS / Frostschutz aktiviert]";
+        }
+        else if (this.aktuelleTemperatur < this.zielTemperatur) {
+            heizStatus = "[Heize auf "+ zielTemperatur + "]";
+        }
+        else {
+            heizStatus = "[Inaktiv]";
+        }
+        return String.format("%s Aktuell: %.1f°C", heizStatus, aktuelleTemperatur);
+    }
+
+    // Getter und Setter
+    public void setZielTemperatur(double zielTemperatur) {
+        if (zielTemperatur < 5.0 || zielTemperatur > 30.0) {
+            throw new IllegalArgumentException("Zieltemperatur muss zwischen 5.0 und 30.0 Grad Celsius liegen.");
+        }
+        else {
+            this.zielTemperatur = zielTemperatur;
+        }
+
+        if (this.zielTemperatur == 5.0) {
+            this.frostschutzmodus = true;
+        }
+        else {
+            this.frostschutzmodus = false;
+        }
+    }
+    
+    public double getZielTemperatur() {
+        return zielTemperatur;
+    }
+
+    public void setAktuelleTemperatur(double aktuelleTemperatur) {
+        this.aktuelleTemperatur = aktuelleTemperatur;
+    }
+
+    public double getAktuelleTemperatur() {
+        return aktuelleTemperatur;
+    }
+    
+    public double getLetzteTemperatur() {
+        return letzteZielTemperatur;
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Gebaeude.java ---
+package shared;
+
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
+
+public class Gebaeude implements Serializable {
+    // Attribute
+    private static final long serialVersionUID = 1L;
+
+    private String name;
+    // Aufbau: [[Raum1 Name: Raum-Objekt1],
+    //          [Raum2 Name: Raum-Objekt2]...]
+    private HashMap<String, Raum> raeume;
+
+    //Aufbau: [[Benutzername1: [Szenenname1, Szenenname2, ...]],
+    //          [Benutzername2: [Szenenname1, Szenenname2, ...]]...]
+    private HashMap<String, List<String>> benutzerSzenen;
+    
+    // Konstruktor
+    public Gebaeude(String name){
+        this.name = name.toLowerCase();
+        this.raeume = new HashMap<>();
+        this.benutzerSzenen = new HashMap<>();
+    }
+
+    // Methoden
+    public HashMap<String, List<String>> getBenutzerSzenen() {
+        if (this.benutzerSzenen == null) {
+            this.benutzerSzenen = new HashMap<>();
+        }
+        return this.benutzerSzenen;
+    }
+    
+    // Getter und Setter
+    public void setName(String name) {
+        this.name = name.toLowerCase();
+    }
+    
+    public String getName() {
+        return name;
+    }
+
+    public void addRaum(Raum raum) {
+        if (raum != null && raum.getName() != null) {
+            String schluessel = raum.getName().toLowerCase();
+
+            if (this.raeume.containsKey(schluessel)) {
+                throw new RaumExistiertBereitsException(raum.getName());
+            }
+            this.raeume.put(schluessel, raum);
+        }
+    }
+
+    public HashMap<String, Raum> getRaeume() {
+        return raeume;
+    }
+
+    public Raum getRaum(String name) {
+        // return Raum-Objekt mit dem übergebenen Namen
+        if (name == null) {
+            return null;
+        }
+
+        return this.raeume.get(name.toLowerCase());
+    }
+}
+
+--- ./Smart-Home-System/src/shared/GeraetExistiertBereitsException.java ---
+package shared;
+
+public class GeraetExistiertBereitsException extends RuntimeException {
+    public GeraetExistiertBereitsException(String geraetName) {
+        super("Fehler: Ein Gerät mit dem Namen '" + geraetName + "' existiert bereits in diesem Raum.");
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Admin.java ---
+package shared;
+
+public class Admin {
+    // Attribute
+    // Konstruktor
+    // Methoden
+    // Getter und Setter
+}
+
+
+--- ./Smart-Home-System/src/shared/SmartHomeService.java ---
+package shared;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+public interface SmartHomeService extends Remote {
+    // Methoden
+    /**
+     * Gibt das gesamte Gebäude mit allen Räumen und Geräten zurück.
+     * @return
+     * @throws RemoteException
+     */
+    Gebaeude getGebaeude() throws RemoteException;
+
+    /**
+     * Gibt einen bestimmten Raum des Gebäudes zurück.
+     * @param raumName
+     * @return
+     * @throws RemoteException
+     */
+    Raum getRaum(String raumName) throws RemoteException;
+
+    /**
+     * Führt einen Befehl für ein Gerät in einem bestimmten Raum aus.
+     * @param raumName
+     * @param geraetName
+     * @param befehl
+     * @param wert
+     * @return
+     * @throws RemoteException
+     */
+    String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException;
+
+    /**
+     * Registriert einen Client für Updates vom Server.
+     * @param client
+     * @throws RemoteException
+     */
+    void registriereClient(SmartHomeCallback client) throws RemoteException;
+    
+    /**
+     * Meldet einen Client vom Server ab.
+     * @param client
+     * @throws RemoteException
+     */
+    void meldeClientAb(SmartHomeCallback client) throws RemoteException;
+
+    /**
+     * Überprüft das Passwort und gibt die entsprechende Rolle zurück.
+     * @param passwort
+     * @return
+     * @throws RemoteException
+     */
+    Rolle login(String passwort) throws RemoteException;
+
+    /**
+     * Fügt einen neuen Raum zum Gebäude hinzu, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @return
+     * @throws RemoteException
+     */
+    String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException;
+
+    /**
+     * Löscht einen Raum aus dem Gebäude, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @return
+     * @throws RemoteException
+     */
+    String raumLoeschen(Rolle rolle, String raumName) throws RemoteException;
+
+    /**
+     * Fügt ein neues Gerät zu einem Raum hinzu, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @param geraetTyp
+     * @param geraetName
+     * @return
+     * @throws RemoteException
+     */
+    String geraetHinzufuegen(Rolle rolle, String raumName, String geraetTyp, String geraetName) throws RemoteException;
+
+    /**
+     * Löscht ein Gerät aus einem Raum, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @param geraetName
+     * @return
+     * @throws RemoteException
+     */
+    String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException;
+
+    /**
+     * Führt eine Szene aus
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneAusfuehren(Rolle rolle, String szeneName) throws RemoteException;
+
+    /**
+     * Erstellt eine neue Szene.
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneErstellen(Rolle rolle, String szeneName) throws RemoteException;
+
+    /**
+     * Fügt eine Aktion zu einer Szene hinzu.
+     * @param rolle
+     * @param szeneName
+     * @param raumName
+     * @param geraetName
+     * @param befehl
+     * @param wert
+     * @return
+     * @throws RemoteException
+     */
+    String szeneAktionHinzufuegen(Rolle rolle, String szeneName, String raumName, String geraetName, String befehl, String wert) throws RemoteException;
+
+    /**
+     * Löscht eine Szene.
+     * @param rolle
+     * @param szeneName
+     * @return
+     * @throws RemoteException
+     */
+    String szeneLoeschen(Rolle rolle, String szeneName) throws RemoteException;
+}
+
+--- ./Smart-Home-System/src/shared/Schaltbar.java ---
+package shared;
+
+public interface Schaltbar {
+    // Methoden
+    /**
+     * Schaltet das Gerät an und aus.
+     * @return
+     */
+    public void schalte();
+    
+    /**
+     * Boolschen Wert des Status erhalten.
+     * @return boolean Wert des Status
+     */
+    public boolean getStatusAsBoolean();
+}
+
+--- ./Smart-Home-System/src/shared/Raum.java ---
+package shared;
+
+import java.util.ArrayList;
+import java.io.Serializable;
+
+public class Raum implements Serializable {
+    // Attribute
+    private static final long serialVersionUID = 1L;
+
+    private String name;
+    private ArrayList<SmartDevice> geraete;
+    
+    // Konstruktor
+    public Raum(String name) {
+        this.name = name;
+        this.geraete = new ArrayList<>();
+    }
+
+    // Methoden
+
+    // Getter und Setter
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void addGeraet(SmartDevice geraet) {
+        if (geraet != null && geraet.getName() != null) {
+            for (SmartDevice vorhandenesGeraet : this.geraete) {
+                if (vorhandenesGeraet.getName().equalsIgnoreCase(geraet.getName())) {
+                    throw new GeraetExistiertBereitsException(geraet.getName());
+                }
+            }
+            this.geraete.add(geraet);
+        }
+    }
+
+    // nur um einzelnes Gerät zu bekommen
+    public SmartDevice getGeraet(int index) {
+        return this.geraete.get(index);
+    }
+    // um alle Geräte zu bekommen
+    public ArrayList<SmartDevice> getGeraete() {
+        return geraete;
+    }
+}
+
+--- ./Smart-Home-System/src/shared/UngueltigeTemperaturException.java ---
+package shared;
+
+public class UngueltigeTemperaturException extends IllegalArgumentException {
+    // Konstruktor -> baut falschen Wert direkt in Fehlermeldung ein
+    public UngueltigeTemperaturException(double versuchteTemperatur) {
+        super("Die Zieltemperatur von " + versuchteTemperatur + "°C ist nicht erlaubt! (Nur 5.0 bis 30.0 Grad möglich).");
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Rolle.java ---
+package shared;
+
+import java.io.Serializable;
+
+public enum Rolle implements Serializable {
+    ADMIN,
+    BEDIENER,
+    GAST
+}
+
+--- ./Smart-Home-System/src/shared/UngueltigerProzentwertException.java ---
+package shared;
+
+public class UngueltigerProzentwertException extends IllegalArgumentException {
+    public UngueltigerProzentwertException(double prozent) {
+        super("Der Wert " + prozent + "% ist ungültig! Eine Jalousie kann nur Werte von 0.0 bis 100.0 Prozent annehmen.");
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Thermometer.java ---
+package shared;
+
+public class Thermometer extends SensorDevice {
+    private double basisTemperatur;
+    
+    // Das Random-Attribut wurde komplett entfernt!
+
+    public Thermometer(String name) {
+        super(name);
+        this.basisTemperatur = 21.0; // Standardwert
+    }
+
+    public String getStatusAsString() {
+        double schwankung = (Math.random() * 0.6) - 0.3;
+        double aktuell = this.basisTemperatur + schwankung;
+        
+        // Runden auf eine Nachkommastelle
+        double gerundet = Math.round(aktuell * 10.0) / 10.0; 
+        return "[*] Gemessene Raumtemperatur: " + gerundet + "°C";
+    }
+}
+
+--- ./Smart-Home-System/src/shared/RaumExistiertBereitsException.java ---
+package shared;
+
+public class RaumExistiertBereitsException extends RuntimeException {
+    public RaumExistiertBereitsException(String raumName) {
+        super("Fehler: Ein Raum mit dem Namen '" + raumName + "' existiert bereits in diesem Gebäude.");
+    }
+}
+
+--- ./Smart-Home-System/src/shared/SmartHomeCallback.java ---
+package shared;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+public interface SmartHomeCallback extends Remote {
+    /**
+     * vom Server aufgerufen, wenn sich im Haus etwas ändert
+     */
+    void empfangeUpdate(String nachricht) throws RemoteException;
+}
+
+--- ./Smart-Home-System/src/shared/Lichtschalter.java ---
+package shared;
+
+public class Lichtschalter extends SmartDevice implements Schaltbar {
+    // Attribute
+    private boolean status;
+    
+    // Konstruktor
+    public Lichtschalter(String name) {
+        super(name);
+        this.status = false; // standardmäßig ausgeschaltet
+    }
+    
+    // Methoden
+    public void schalte() {
+        this.status = !this.status; // Status wechseln
+    }
+
+    public boolean getStatusAsBoolean() {
+        return this.status;
+    }
+
+    public String getStatusAsString() {
+        if (this.status) {
+            return "[] Eingeschaltet";
+        } else {
+            return "[] Ausgeschaltet";
+        }
+    }
+    // Getter und Setter
+}
+
+--- ./Smart-Home-System/src/shared/SmartDevice.java ---
+package shared;
+
+import java.io.Serializable;
+import java.util.UUID;
+
+public abstract class SmartDevice implements Serializable {
+    // Attribute
+    private static final long serialVersionUID = 1L;
+    private String id;
+    private String name;
+
+    // Konstruktor
+    public SmartDevice(String name) {
+        this.id = UUID.randomUUID().toString();
+        this.name = name.toLowerCase();
+    }
+
+    // Methoden
+    public abstract String getStatusAsString(); // abstrakt, da jede Instanz einen anderen String als Status ausgeben soll
+
+    // Getter und Setter   
+    public String getId() {
+        return id;
+    }
+
+    // könnte zu problemen führen,
+    // wenn der User kein Admin ist und nicht weiß was er macht
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+}
+
+--- ./Smart-Home-System/src/shared/Rauchmelder.java ---
+package shared;
+
+public class Rauchmelder extends SensorDevice {
+    private boolean alarmAktiv;
+
+    public Rauchmelder(String name) {
+        super(name);
+        this.alarmAktiv = false; // standardmäßig kein Alarm
+    }
+
+    @Override
+    public String getStatusAsString() {
+        if (alarmAktiv) {
+            return "[!] ALARM: Rauch erkannt!";
+        } else {
+            return "[v] OK: Kein Rauch erkannt";
+        }
+    }
+}
+
+--- ./Smart-Home-System/src/client/CLIClient.java ---
+package client;
+
+import shared.Raum;
+import shared.Rolle;
+import shared.SmartDevice;
+import shared.SmartHomeService;
+
+import static client.KonsoleDesign.*;
+
+import java.rmi.registry.Registry;
+import java.util.Scanner;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+
+public class CLIClient {
+    // Attribute
+    private SmartHomeService serverStub;
+    private String aktuellerRaumKontext = null; // sichert aktuellen Raum für Befehle; null -> Gebäude-Übersicht anzeigen
+    private Rolle meineRolle = Rolle.GAST; // standardmäßig immer Gast, bis Login erfolgreich war
+
+    // Konstruktor
+    public CLIClient() {
+        verbindungHerstellen();
+    }
+
+    private void verbindungHerstellen() {
+        try {
+            System.out.println("Verbinde zum Smart-Home-Server...");
+            Registry registry = LocateRegistry.getRegistry("127.0.0.1", 1099); // "localhost" = 127.0.0.1
+            serverStub = (SmartHomeService) registry.lookup("SmartHomeService");
+            System.out.println("Erfolg: Verbindung zum Smart Home Server hergestellt.");
+        } catch (Exception e) {
+            System.err.println("Fehler: Verbindung zum Smart Home Server fehlgeschlagen: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1); // Beendet Anwendung, wenn die Verbindung fehlschlägt
+        }
+    }
+
+    // MainLoop: wartet auf Benutzereingaben und führt Befehle aus
+    public void mainLoop() {
+        Scanner scanner = new Scanner(System.in);
+        clearConsole();
+        
+        System.out.print(YELLOW + "Bitte geben Sie das System-Passwort ein: " + RESET);
+        String passwort = scanner.nextLine();
+        
+        try {
+            this.meineRolle = serverStub.login(passwort);
+            
+            // NEU: Der harte Rausschmiss für Gäste!
+            if (this.meineRolle == Rolle.GAST) {
+                System.out.println(RED + BOLD + "Zugriff verweigert: Falsches oder leeres Passwort!" + RESET);
+                System.out.println("Der Client wird aus Sicherheitsgründen beendet.");
+                scanner.close();
+                return; // Beendet die mainLoop sofort -> Programm geht zu.
+            }
+            
+            System.out.println(GREEN + "Erfolgreich angemeldet als: " + BOLD + this.meineRolle + RESET + "\n");
+        } catch (RemoteException e) {
+            System.out.println(RED + "Netzwerkfehler beim Login. Client wird beendet." + RESET);
+            scanner.close();
+            return;
+        }
+        druckeHeader("HAUPTMENÜ");
+        System.out.println("Willkommen in Ihrem Smart Home CLI-Client!");
+        System.out.println("Geben Sie 'help' ein, um eine Liste der verfügbaren Befehle zu erhalten.");
+
+        while(true) {
+            String prompt;
+            
+            if (aktuellerRaumKontext == null) {
+                // Blauer Hintergrund, Weißer Text, Fett wenn im SmartHome "Verzeichnis"
+                prompt =
+                    BG_BLUE + BOLD + " SmartHome "
+                    + RESET + BLUE + PL_ARROW
+                    + RESET + " ";
+            } else { // wenn Raum betreten wird neuer Prompt
+                prompt =
+                    BG_BLUE + BOLD + " SmartHome " + RESET
+                    + BG_GREEN + BLUE + PL_ARROW + RESET
+                    + BG_GREEN + BOLD + " " + aktuellerRaumKontext.toUpperCase() + " "
+                    + RESET + GREEN + PL_ARROW
+                    + RESET + " ";
+            }
+            System.out.print(prompt);
+
+            String eingabe = scanner.nextLine(); // Eingabe einlesen
+            if (eingabe.trim().isEmpty()) {
+                continue; // Leere Eingaben ignorieren
+            }
+
+            // Eingaben in Befehl und Parameter aufteilen
+            String[] argument = eingabe.split("\\s+", 2); // Aufteilen in Befehl und Rest
+            String befehl = argument[0].toLowerCase(); // Befehl in lowercase
+
+            if (befehl.equals("exit")) {
+                System.out.println("Beende Smart Home CLI-Client. Auf Wiedersehen!");
+                break; // Beendet die Schleife und damit die Anwendung
+            }
+
+            try {
+                verarbeiteBefehl(befehl, argument);
+            } catch (RemoteException e) {
+                System.err.println("Fehler: Netzwerkfehler während Ausführung des Befehls: " + e.getMessage());
+                e.printStackTrace();
+                aktuellerRaumKontext = null; // Kontext zurücksetzen, um Fehler zu vermeiden
+            } catch (Exception e) {
+                System.err.println("Fehler: Fehler während Ausführung des Befehls: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        scanner.close();
+    }
+
+    // Befehle verarbeiten
+    private void verarbeiteBefehl(String befehl, String[] argument) throws RemoteException {
+        clearConsole();
+        switch (befehl) {
+            case "help":
+                zeigeHilfe();
+                break;
+            case "list", "ls":
+                if (aktuellerRaumKontext == null) {
+                    zeigeRaeume();
+                } else {
+                    zeigeGeraete(aktuellerRaumKontext);
+                }
+                break;
+            case "cd":
+                wechselRaum(argument);
+                break;
+            case "toggle", "schalte":
+                schalteGeraet(argument);
+                break;
+            case "set":
+                setzeGeraet(argument);
+                break;
+            case "szene":
+                starteSzene(argument);
+                break;
+            case "mkszene":
+                erstelleCustomSzene(argument);
+                break;
+            case "szene_add":
+                fuegeSzeneAktionHinzu(argument);
+                break;
+            case "rmszene":
+                loescheSzene(argument);
+                break;
+            case "mkdir":
+                erstelleRaum(argument);
+                break;
+            case "rmdir":
+                loescheRaum(argument);
+                break;
+            case "mkdev":
+                erstelleGeraet(argument);
+                break;
+            case "rmdev":
+                loescheGeraet(argument);
+                break;
+            default:
+                System.out.println(RED + "Fehler: Unbekannter Befehl '" + befehl + "'." + RESET);
+                System.out.println("Tipp: Geben Sie 'help' ein, um eine Liste aller Befehle zu sehen.\n");
+                break;
+        }
+    }
+
+    private void wechselRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2) {
+            System.out.println("Fehler: Kein Raumname angegeben. Nutzung: cd <raumname> oder cd ..");
+            return;
+        }
+        String ziel = argument[1].trim().toLowerCase();
+        if (ziel.equals("..")) {
+            aktuellerRaumKontext = null; // Kontext zurücksetzen, um Gebäude-Übersicht anzuzeigen
+            System.out.println("Sie haben den Raum verlassen.");
+            druckeHeader("HAUPTMENÜ");
+        } else {
+            Raum raum = serverStub.getRaum(ziel);
+            if (raum == null) {
+                System.out.println("Fehler: Raum '" + ziel + "' nicht gefunden.");
+            } else {
+                aktuellerRaumKontext = ziel; // Kontext auf neuen Raum setzen
+                System.out.println("Sie befinden sich jetzt im Raum '" + ziel + "'.");
+                zeigeGeraete(ziel);
+            }
+        }
+    }
+
+    private void zeigeGeraete(String raumName) throws RemoteException {
+        if (serverStub.getRaum(raumName) == null) {
+            return;
+        }
+        else if (serverStub.getRaum(raumName).getGeraete().isEmpty()) {
+            System.out.println("Der Raum '" + raumName + "' enthält keine Geräte.");
+        }
+        else {
+            druckeHeader(raumName);
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-30s " + BLUE + "|" + RESET + BOLD + " %-64s" + BLUE + "|\n" + RESET, "Gerätename", "Aktueller Status");
+            druckeHeader("");
+
+            for (SmartDevice device : serverStub.getRaum(raumName).getGeraete()) {
+                System.out.printf(BLUE + BOLD + "|" + RESET + " %-30s " + BLUE + BOLD + "|" + RESET + " %-64s" + BLUE + BOLD + "|\n", device.getName(), device.getStatusAsString());
+            }
+            druckeHeader("");
+        }
+    }
+
+    private void zeigeRaeume() throws RemoteException {
+        if (serverStub.getGebaeude() == null || serverStub.getGebaeude().getRaeume().isEmpty()) {
+            System.out.println(YELLOW + "Das Gebäude ist aktuell leer. Es gibt keine Räume." + RESET);
+            return;
+        }
+
+        druckeHeader("GEBÄUDE-ÜBERSICHT");
+        System.out.printf(BLUE + "|" + BOLD + " %-97s" + RESET + BLUE + "|\n" + RESET, "Verfügbare Räume");
+        druckeHeader("");
+
+        // über alle Schlüssel (Raumnamen) der HashMap iterieren
+        for (String raumName : serverStub.getGebaeude().getRaeume().keySet()) {
+            // ersten Buchstaben groß machen, damit schöner aussieht
+            String anzeigeName = raumName.substring(0, 1).toUpperCase() + raumName.substring(1);
+            System.out.printf(BLUE + BOLD + "|" + RESET + BOLD + " %-71s " + BLUE + BOLD + "%25s|\n" + RESET, anzeigeName, "");
+        }
+        druckeHeader("");
+        System.out.println("Tipp: Nutzen Sie 'cd <raumname>', um einen Raum zu betreten.\n");
+    }
+
+    private void schalteGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Sie befinden sich in keinem Raum. Bitte wechseln Sie zuerst in einen Raum." + RESET);
+            return;
+        }
+        else if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: schalte <gerätname>" + RESET);
+            return;
+        }
+        String antwort = serverStub.befehlAusfuehren(this.meineRolle, aktuellerRaumKontext, argument[1].trim(), argument[0].trim(), "");
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Fehler")) {
+            System.out.println(RED + BOLD + antwort + RESET);
+        } else {
+            System.out.println(antwort); // falls der Server was anderes schickt
+        }
+    }
+
+    private void setzeGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Sie befinden sich in keinem Raum." + RESET);
+            return;
+        }
+        else if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät/Wert angegeben. Nutzung: set <gerätname> <wert>" + RESET);
+            return;
+        }
+        
+        String eingabe = argument[1].trim();
+        int letztesLeerzeichenIndex = eingabe.lastIndexOf(' ');
+
+        if (letztesLeerzeichenIndex == -1) {
+            System.out.println(RED + "Fehler: Es fehlt ein Wert. Nutzung: set <gerätname> <wert>" + RESET);
+            return;
+        }
+
+        String geraetName = eingabe.substring(0, letztesLeerzeichenIndex).trim();
+        String wert = eingabe.substring(letztesLeerzeichenIndex + 1).trim();
+
+        try {
+            Double.parseDouble(wert);
+        } catch (NumberFormatException e) {
+            System.out.println(RED + "Fehler: Der Wert '" + wert + "' ist keine gültige Zahl! Bitte verwenden Sie einen Punkt (z.B. 22.5)." + RESET);
+            return; // Abbruch: Server wird gar nicht erst kontaktiert
+        }
+
+        String antwort = serverStub.befehlAusfuehren(this.meineRolle, aktuellerRaumKontext, geraetName, "set", wert);
+        
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        }
+        else if (antwort.startsWith("Fehler")) {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+        else {
+            System.out.println(antwort);
+        }
+    }
+
+    private void starteSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Keine Szene angegeben. Nutzung: szene <name>" + RESET);
+            System.out.println("Verfügbare Szenen: gute_nacht, guten_morgen, panik");
+            return;
+        }
+        
+        String szeneName = argument[1].trim();
+        String antwort = serverStub.szeneAusfuehren(this.meineRolle, szeneName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void erstelleCustomSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Name angegeben. Nutzung: mkszene <name>" + RESET);
+            return;
+        }
+        String antwort = serverStub.szeneErstellen(this.meineRolle, argument[1].trim());
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void fuegeSzeneAktionHinzu(String[] argument) throws RemoteException {
+        if (argument.length < 2) {
+            System.out.println(RED + "Fehler: Nutzung: szene_add <szene> <raum> <gerät> <schalte|set> [wert]" + RESET);
+            return;
+        }
+        
+        String[] teile = argument[1].trim().split("\\s+");
+        if (teile.length < 4) {
+            System.out.println(RED + "Fehler: Zu wenige Argumente. Nutzung: szene_add <szene> <raum> <gerät> <schalte|set> [wert]" + RESET);
+            return;
+        }
+        
+        String szene = teile[0];
+        String raum = teile[1];
+        
+        // von hinten nach Befehl ("schalte" oder "set" oder "toggle") suchen, weil sonst probleme mit geräte namen wegen leerzeichen
+        int cmdIndex = -1;
+        for (int i = teile.length - 1; i >= 2; i--) {
+            String wort = teile[i].toLowerCase();
+            if (wort.equals("schalte") || wort.equals("set") || wort.equals("toggle")) {
+                cmdIndex = i;
+                break;
+            }
+        }
+        
+        if (cmdIndex == -1 || cmdIndex == 2) {
+            System.out.println(RED + "Fehler: Konnte den Befehl (schalte/set) oder das Gerät nicht erkennen." + RESET);
+            return;
+        }
+        
+        // Gerätename aus allen Wörtern dazwischen zusammenbauen (z.B. "wohnzimmer" + "lichtschalter")
+        StringBuilder geraetBuilder = new StringBuilder();
+        for (int i = 2; i < cmdIndex; i++) {
+            geraetBuilder.append(teile[i]).append(" ");
+        }
+        String geraet = geraetBuilder.toString().trim();
+        
+        String befehl = teile[cmdIndex];
+
+        StringBuilder wertBuilder = new StringBuilder();
+        for (int i = cmdIndex + 1; i < teile.length; i++) {
+            wertBuilder.append(teile[i]).append(" ");
+        }
+        String wert = wertBuilder.toString().trim();
+        
+        String antwort = serverStub.szeneAktionHinzufuegen(this.meineRolle, szene, raum, geraet, befehl, wert);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void loescheSzene(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Name angegeben. Nutzung: rmszene <name>" + RESET);
+            return;
+        }
+        String antwort = serverStub.szeneLoeschen(this.meineRolle, argument[1].trim());
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void erstelleRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Raumname angegeben. Nutzung: mkdir <raumname>" + RESET);
+            return;
+        }
+        
+        String raumName = argument[1].trim();
+        String antwort = serverStub.raumHinzufuegen(this.meineRolle, raumName);
+        
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Sicherheits-Fehler")) {
+            System.out.println(RED + BG_GRAY + BOLD + " " + antwort + " " + RESET);
+        } else {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+    }
+
+    private void loescheRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Raumname angegeben. Nutzung: rmdir <raumname>" + RESET);
+            return;
+        }
+        
+        String raumName = argument[1].trim();
+        String antwort = serverStub.raumLoeschen(this.meineRolle, raumName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void erstelleGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Bitte wechseln Sie zuerst in einen Raum (z.B. cd wohnzimmer)." + RESET);
+            return;
+        }
+        
+        // Argumentlänge prüfen und in Typ + Name aufteilen
+        if (argument.length < 2) {
+            System.out.println(RED + "Fehler: Nutzung: mkdev <heizung|licht|jalousie> <gerätname>" + RESET);
+            return;
+        }
+        
+        String[] teile = argument[1].trim().split("\\s+", 2);
+        if (teile.length < 2) {
+            System.out.println(RED + "Fehler: Name fehlt. Nutzung: mkdev <heizung|licht|jalousie> <gerätname>" + RESET);
+            return;
+        }
+        
+        String typ = teile[0];
+        String geraetName = teile[1];
+        
+        String antwort = serverStub.geraetHinzufuegen(this.meineRolle, aktuellerRaumKontext, typ, geraetName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void loescheGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Bitte wechseln Sie zuerst in einen Raum." + RESET);
+            return;
+        }
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: rmdev <gerätname>" + RESET);
+            return;
+        }
+        
+        String geraetName = argument[1].trim();
+        String antwort = serverStub.geraetLoeschen(this.meineRolle, aktuellerRaumKontext, geraetName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    // Hilfsmethode für Ausgabe
+    private void verarbeiteAntwortFarbig(String antwort) {
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Sicherheits-Fehler")) {
+            System.out.println(RED + BG_GRAY + BOLD + " " + antwort + " " + RESET);
+        } else {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+    }
+
+    private void zeigeHilfe() {
+        druckeHeader("VERFÜGBARE BEFEHLE");
+        
+        // Sichtbar: BEDIENER u ADMIN
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd <raum>", "Wechselt in einen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "cd ..", "Verlässt den aktuellen Raum");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "ls", "Listet alle Geräte im aktuellen Raum auf");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "schalte <gerätname>", "Schaltet ein Gerät an/aus");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "Setzt einen Wert (z.B. Temperatur oder Prozent)");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "help", "Zeigt dieses Hilfemenü an");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "szene <name>", "Aktiviert ein Smart-Home-Szenario (z.B. gute_nacht, panik)");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkszene <name>", "Erstellt eine neue, leere benutzerdefinierte Szene");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "szene_add <param>", "Fügt Aktion hinzu (Format: szene_add <szene> <raum> <gerät> <schalte|set> [wert])");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmszene <name>", "Löscht eine benutzerdefinierte Szene");
+
+        // Sichtbar: ADMIN
+        if (this.meineRolle == Rolle.ADMIN) {
+            System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "--- ADMIN-WERKZEUGE ---", "------------------------------------------------------------------------");
+            System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkdir <raum>", "Erstellt einen neuen, leeren Raum");
+            System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmdir <raum>", "Löscht einen Raum komplett");
+            System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "mkdev <typ> <name>", "Baut ein neues Gerät im aktuellen Raum ein (Typ: heizung/licht/jalousie)");
+            System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "rmdev <name>", "Baut ein Gerät aus dem aktuellen Raum aus");
+        }
+        druckeHeader("");
+    }
+
+    public static void main(String[] args) {
+        CLIClient client = new CLIClient();
+        client.mainLoop();
+    }
+}
+
+--- ./Smart-Home-System/src/client/KonsoleDesign.java ---
+package client;
+
+// Hilfsklasse für Farben und Design der Konsole in CLIClient
+public class KonsoleDesign {
+    private KonsoleDesign() {} // -> kein "new ConsoleColor()" möglich
+
+    // ANSI Farb-Codes
+    public static final String RESET = "\u001B[0m";
+    public static final String BOLD = "\u001B[1m";
+    
+    // Textfarben
+    public static final String RED = "\u001B[31m";
+    public static final String GREEN = "\u001B[32m";
+    public static final String YELLOW = "\u001B[33m";
+    public static final String BLUE = "\u001B[34m";
+    public static final String CYAN = "\u001B[36m";
+    
+    // Hintergrundfarben
+    public static final String BG_BLUE = "\u001B[44m";
+    public static final String BG_GREEN = "\u001B[42m";
+    public static final String BG_GRAY = "\u001B[47m";
+    
+    // Powerlevel10k Symbol
+    public static final String PL_ARROW = "\uE0B0";
+
+    public static void clearConsole() {
+        System.out.print("\033[H\033[2J"); 
+        System.out.flush();
+    }
+
+    public static void druckeHeader(String titel) {
+        int standardBreite = 100;
+        String prefix = "+---";
+
+        int stricheAnzahl = standardBreite - prefix.length() - titel.length() - 1;
+        if (stricheAnzahl < 0) stricheAnzahl = 0;
+        
+        StringBuilder linie = new StringBuilder();
+        for (int i = 0; i < stricheAnzahl; i++) {
+            linie.append("-");
+        }
+        
+        System.out.println(BLUE + BOLD + prefix + RESET + BOLD + titel + RESET + BLUE + BOLD + linie.toString() + "+" + RESET);
+    }
+}

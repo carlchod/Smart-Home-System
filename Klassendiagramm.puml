@@ -1,0 +1,229 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 50
+
+package shared {
+    interface Serializable <<interface>>
+    interface Remote <<interface>>
+
+    enum Rolle {
+        ADMIN
+        BEDIENER
+        GAST
+    }
+
+    interface SmartHomeService <<interface>> {
+        + getGebaeude(): Gebaeude
+        + getRaum(raumName: String): Raum
+        + befehlAusfuehren(rolle: Rolle, raumName: String, geraetName: String, befehl: String, wert: String): String
+        + registriereClient(client: SmartHomeCallback)
+        + meldeClientAb(client: SmartHomeCallback)
+        + login(passwort: String): Rolle
+        + raumHinzufuegen(rolle: Rolle, raumName: String): String
+        + raumLoeschen(rolle: Rolle, raumName: String): String
+        + geraetHinzufuegen(rolle: Rolle, raumName: String, geraetTyp: String, geraetName: String): String
+        + geraetLoeschen(rolle: Rolle, raumName: String, geraetName: String): String
+        + szeneAusfuehren(rolle: Rolle, szeneName: String): String
+        + szeneErstellen(rolle: Rolle, szeneName: String): String
+        + szeneAktionHinzufuegen(rolle: Rolle, szeneName: String, raumName: String, geraetName: String, befehl: String, wert: String): String
+        + szeneLoeschen(rolle: Rolle, szeneName: String): String
+    }
+
+    interface SmartHomeCallback <<interface>> {
+        + empfangeUpdate(nachricht: String)
+    }
+
+    interface Schaltbar <<interface>> {
+        + schalte()
+        + getStatusAsBoolean(): boolean
+    }
+
+    class Gebaeude {
+        - name: String
+        - raeume: HashMap<String, Raum>
+        - benutzerSzenen: HashMap<String, List<String>>
+        + Gebaeude(name: String)
+        + getBenutzerSzenen(): HashMap<String, List<String>>
+        + addRaum(raum: Raum)
+        + getRaeume(): HashMap<String, Raum>
+        + getRaum(name: String): Raum
+    }
+
+    class Raum {
+        - name: String
+        - geraete: ArrayList<SmartDevice>
+        + Raum(name: String)
+        + addGeraet(geraet: SmartDevice)
+        + getGeraet(index: int): SmartDevice
+        + getGeraete(): ArrayList<SmartDevice>
+    }
+
+    abstract class SmartDevice {
+        - id: String
+        - name: String
+        + SmartDevice(name: String)
+        + {abstract} getStatusAsString(): String
+        + getId(): String
+        + getName(): String
+    }
+
+    abstract class SensorDevice {
+        + SensorDevice(name: String)
+    }
+
+    class Thermometer {
+        - basisTemperatur: double
+        + Thermometer(name: String)
+        + getStatusAsString(): String
+    }
+
+    class Rauchmelder {
+        - alarmAktiv: boolean
+        + Rauchmelder(name: String)
+        + getStatusAsString(): String
+    }
+
+    class Lichtschalter {
+        - status: boolean
+        + Lichtschalter(name: String)
+        + schalte()
+        + getStatusAsBoolean(): boolean
+        + getStatusAsString(): String
+    }
+
+    class HeizungsThermostat {
+        - zielTemperatur: double
+        - aktuelleTemperatur: double
+        - letzteZielTemperatur: double
+        - frostschutzmodus: boolean
+        + HeizungsThermostat(name: String, zielTemperatur: double, aktuelleTemperatur: double)
+        + schalte()
+        + waermer()
+        + kuehler()
+        + getStatusAsBoolean(): boolean
+        + getStatusAsString(): String
+        + setZielTemperatur(zielTemperatur: double)
+    }
+
+    class Jalousie {
+        - oeffnungsGrad: double
+        + Jalousie(name: String)
+        + setOeffnungsGrad(oeffnungsGrad: double)
+        + getOeffnungsGrad(): double
+        + getStatusAsString(): String
+    }
+    
+    class Admin {
+    }
+
+    class UngueltigeTemperaturException
+    class UngueltigerProzentwertException
+    class RaumExistiertBereitsException
+    class GeraetExistiertBereitsException
+}
+
+package server {
+    class SmartHomeServer {
+        - meinGebaeude: Gebaeude
+        - persistenzManager: PersistenzManager
+        - registrierteClients: List<SmartHomeCallback>
+        + SmartHomeServer()
+        + {static} main(args: String[])
+        - sendeUpdateAnAlle(nachricht: String)
+        + serverBeenden()
+        - initDummyData()
+    }
+
+    class PersistenzManager {
+        - {static} DATEI_NAME: String
+        - gson: Gson
+        + speichereGebaeude(gebaeude: Gebaeude)
+        + ladeGebaeude(): Gebaeude
+    }
+
+    class ServerLogger {
+        - {static} LOG_FILE: String
+        - {static} FORMATTER: DateTimeFormatter
+        + {static} log(rolle: Rolle, aktion: String)
+    }
+
+    class SmartDeviceDeserializer {
+        + deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SmartDevice
+    }
+}
+
+package client {
+    class CLIClient {
+        - serverStub: SmartHomeService
+        - aktuellerRaumKontext: String
+        - meineRolle: Rolle
+        + CLIClient()
+        - verbindungHerstellen()
+        + mainLoop()
+        - verarbeiteBefehl(befehl: String, argument: String[])
+        - wechselRaum(argument: String[])
+        - zeigeGeraete(raumName: String)
+        - zeigeRaeume()
+        - schalteGeraet(argument: String[])
+        - setzeGeraet(argument: String[])
+        - starteSzene(argument: String[])
+        - erstelleCustomSzene(argument: String[])
+        - fuegeSzeneAktionHinzu(argument: String[])
+        - loescheSzene(argument: String[])
+        - erstelleRaum(argument: String[])
+        - loescheRaum(argument: String[])
+        - erstelleGeraet(argument: String[])
+        - loescheGeraet(argument: String[])
+        - zeigeHilfe()
+        + {static} main(args: String[])
+    }
+
+    class KonsoleDesign {
+        + {static} RESET: String
+        + {static} BOLD: String
+        + {static} RED: String
+        + {static} GREEN: String
+        + {static} BLUE: String
+        + {static} clearConsole()
+        + {static} druckeHeader(titel: String)
+    }
+}
+
+' Vererbungen und Implementierungen
+SmartHomeService -up-|> Remote
+SmartHomeCallback -up-|> Remote
+Gebaeude .up.|> Serializable
+Raum .up.|> Serializable
+SmartDevice .up.|> Serializable
+Rolle .up.|> Serializable
+
+SensorDevice -up-|> SmartDevice
+Thermometer -up-|> SensorDevice
+Rauchmelder -up-|> SensorDevice
+Lichtschalter -up-|> SmartDevice
+Lichtschalter .up.|> Schaltbar
+HeizungsThermostat -up-|> SmartDevice
+HeizungsThermostat .up.|> Schaltbar
+Jalousie -up-|> SmartDevice
+
+SmartHomeServer .up.|> SmartHomeService
+SmartDeviceDeserializer .up.|> JsonDeserializer
+
+' Beziehungen (Komposition, Aggregation, Assoziation)
+Gebaeude "1" *-- "0..*" Raum : enthält >
+Raum "1" *-- "0..*" SmartDevice : enthält >
+
+SmartHomeServer "1" --> "1" Gebaeude : verwaltet >
+SmartHomeServer "1" --> "1" PersistenzManager : nutzt >
+SmartHomeServer "1" --> "0..*" SmartHomeCallback : benachrichtigt >
+SmartHomeServer ..> ServerLogger : nutzt >
+
+PersistenzManager ..> SmartDeviceDeserializer : registriert >
+
+CLIClient "1" --> "1" SmartHomeService : kommuniziert mit (RMI) >
+CLIClient "1" --> "1" Rolle : hat >
+CLIClient ..> KonsoleDesign : nutzt Formatierung >
+
+@enduml
