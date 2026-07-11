@@ -138,6 +138,15 @@ public class CLIClient {
             case "mkdir":
                 erstelleRaum(argument);
                 break;
+            case "rmdir":
+                loescheRaum(argument);
+                break;
+            case "mkdev":
+                erstelleGeraet(argument);
+                break;
+            case "rmdev":
+                loescheGeraet(argument);
+                break;
             default:
                 System.out.println(RED + "Fehler: Unbekannter Befehl '" + befehl + "'." + RESET);
                 System.out.println("Tipp: Geben Sie 'help' ein, um eine Liste aller Befehle zu sehen.\n");
@@ -275,6 +284,68 @@ public class CLIClient {
         String raumName = argument[1].trim();
         String antwort = serverStub.raumHinzufuegen(this.meineRolle, raumName);
         
+        if (antwort.startsWith("Erfolg")) {
+            System.out.println(GREEN + BOLD + antwort + RESET);
+        } else if (antwort.startsWith("Sicherheits-Fehler")) {
+            System.out.println(RED + BG_GRAY + BOLD + " " + antwort + " " + RESET);
+        } else {
+            System.out.println(RED + BOLD + antwort + RESET);
+        }
+    }
+
+    private void loescheRaum(String[] argument) throws RemoteException {
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Raumname angegeben. Nutzung: rmdir <raumname>" + RESET);
+            return;
+        }
+        
+        String raumName = argument[1].trim();
+        String antwort = serverStub.raumLoeschen(this.meineRolle, raumName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void erstelleGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Bitte wechseln Sie zuerst in einen Raum (z.B. cd wohnzimmer)." + RESET);
+            return;
+        }
+        
+        // Argument-Länge prüfen und in Typ und Name aufteilen
+        if (argument.length < 2) {
+            System.out.println(RED + "Fehler: Nutzung: mkdev <heizung|licht|jalousie> <gerätname>" + RESET);
+            return;
+        }
+        
+        String[] teile = argument[1].trim().split("\\s+", 2);
+        if (teile.length < 2) {
+            System.out.println(RED + "Fehler: Name fehlt. Nutzung: mkdev <heizung|licht|jalousie> <gerätname>" + RESET);
+            return;
+        }
+        
+        String typ = teile[0];
+        String geraetName = teile[1];
+        
+        String antwort = serverStub.geraetHinzufuegen(this.meineRolle, aktuellerRaumKontext, typ, geraetName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    private void loescheGeraet(String[] argument) throws RemoteException {
+        if (aktuellerRaumKontext == null) {
+            System.out.println(RED + "Fehler: Bitte wechseln Sie zuerst in einen Raum." + RESET);
+            return;
+        }
+        if (argument.length < 2 || argument[1].trim().isEmpty()) {
+            System.out.println(RED + "Fehler: Kein Gerät angegeben. Nutzung: rmdev <gerätname>" + RESET);
+            return;
+        }
+        
+        String geraetName = argument[1].trim();
+        String antwort = serverStub.geraetLoeschen(this.meineRolle, aktuellerRaumKontext, geraetName);
+        verarbeiteAntwortFarbig(antwort);
+    }
+
+    // Hilfsmethode für Ausgabe
+    private void verarbeiteAntwortFarbig(String antwort) {
         if (antwort.startsWith("Erfolg")) {
             System.out.println(GREEN + BOLD + antwort + RESET);
         } else if (antwort.startsWith("Sicherheits-Fehler")) {

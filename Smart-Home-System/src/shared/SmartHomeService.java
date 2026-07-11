@@ -61,4 +61,34 @@ public interface SmartHomeService extends Remote {
      * @throws RemoteException
      */
     String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException;
+
+    /**
+     * Löscht einen Raum aus dem Gebäude, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @return
+     * @throws RemoteException
+     */
+    String raumLoeschen(Rolle rolle, String raumName) throws RemoteException;
+
+    /**
+     * Fügt ein neues Gerät zu einem Raum hinzu, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @param geraetTyp
+     * @param geraetName
+     * @return
+     * @throws RemoteException
+     */
+    String geraetHinzufuegen(Rolle rolle, String raumName, String geraetTyp, String geraetName) throws RemoteException;
+
+    /**
+     * Löscht ein Gerät aus einem Raum, wenn der Benutzer die Admin Rolle hat.
+     * @param rolle
+     * @param raumName
+     * @param geraetName
+     * @return
+     * @throws RemoteException
+     */
+    String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException;
 }

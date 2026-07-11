@@ -121,6 +121,71 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
         }
     }
 
+    public String raumLoeschen(Rolle rolle, String raumName) throws RemoteException {
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Räume löschen.";
+        }
+        
+        if (this.meinGebaeude.getRaeume().remove(raumName.toLowerCase()) != null) { // HashMap.remove gibt null zurück, wenn der Schlüssel existierte
+            return "Erfolg: Der Raum '" + raumName + "' wurde unwiderruflich gelöscht.";
+        } else {
+            return "Fehler: Ein Raum mit dem Namen '" + raumName + "' wurde nicht gefunden.";
+        }
+    }
+
+    public String geraetHinzufuegen(Rolle rolle, String raumName, String geraetTyp, String geraetName) throws RemoteException {
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte installieren.";
+        }
+        
+        Raum raum = this.meinGebaeude.getRaum(raumName);
+        if (raum == null) {
+            return "Fehler: Der Raum '" + raumName + "' existiert nicht.";
+        }
+
+        shared.SmartDevice neuesGeraet;
+        // Factory für mögliche Gerätetypen
+        switch (geraetTyp.toLowerCase()) {
+            case "Heizung", "heizung":
+                neuesGeraet = new shared.HeizungsThermostat(geraetName, 20.0); // Standard: 20 Grad
+                break;
+            case "Licht", "licht":
+                neuesGeraet = new shared.Lichtschalter(geraetName);
+                break;
+            case "Jalousie", "jalousie":
+                neuesGeraet = new shared.Jalousie(geraetName);
+                break;
+            default:
+                return "Fehler: Unbekannter Gerätetyp. Erlaubt sind: Heizung o. heizung, Licht o. licht, Jalousie o. jalousie.";
+        }
+
+        raum.addGeraet(neuesGeraet);
+        return "Erfolg: Gerät '" + geraetName + "' (Typ: " + geraetTyp + ") im Raum '" + raumName + "' installiert.";
+    }
+
+    public String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException {
+        // Sicherheitsprüfung -> nur admins
+        if (rolle != Rolle.ADMIN) {
+            return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte entfernen.";
+        }
+
+        Raum raum = this.meinGebaeude.getRaum(raumName);
+        if (raum == null) {
+            return "Fehler: Der Raum '" + raumName + "' existiert nicht.";
+        }
+
+        // Entfernt das Gerät anhand des Namens (Groß-/Kleinschreibung ignorieren)
+        boolean entfernt = raum.getGeraete().removeIf(g -> g.getName().equalsIgnoreCase(geraetName));
+        
+        if (entfernt) {
+            return "Erfolg: Das Gerät '" + geraetName + "' wurde aus dem Raum entfernt.";
+        } else {
+            return "Fehler: Ein Gerät mit dem Namen '" + geraetName + "' wurde im Raum nicht gefunden.";
+        }
+    }
+
     public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
