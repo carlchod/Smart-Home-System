@@ -381,6 +381,7 @@ public class CLIClient {
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "set <gerätname> <wert>", "Setzt einen Wert (z.B. Temperatur oder Prozent)");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "help", "Zeigt dieses Hilfemenü an");
         System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "exit", "Beendet den Client");
+        System.out.printf(BLUE + BOLD + "|" + RESET + " %-23s" + BLUE + BOLD + "|" + RESET + " %-72s" + BLUE + BOLD + "|\n" + RESET, "szene <name>", "Aktiviert ein Smart-Home-Szenario (z.B. gute_nacht, panik)");
 
         // Sichtbar: ADMIN
         if (this.meineRolle == Rolle.ADMIN) {
