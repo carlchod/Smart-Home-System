@@ -93,16 +93,21 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     }
 
     public Rolle login(String passwort) throws RemoteException {
+        Rolle rolle;
         if ("superadmin".equals(passwort)) {
-            return Rolle.ADMIN;
+            rolle = Rolle.ADMIN;
         } else if ("bewohner".equals(passwort)) {
-            return Rolle.BEDIENER;
+            rolle = Rolle.BEDIENER;
         } else {
-            return Rolle.GAST; // falsches/leeres Passwort = Gast
+            rolle = Rolle.GAST; 
         }
+
+        ServerLogger.log(rolle, "Ein Benutzer hat sich angemeldet.");
+        return rolle;
     }
 
     public String raumHinzufuegen(Rolle rolle, String raumName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht den Raum '" + raumName + "' zu erstellen.");
         // Sicherheitsprüfung -> nur admins
         if (rolle != Rolle.ADMIN) {
             return "Sicherheits-Fehler: Zugriff verweigert! Nur Administratoren dürfen neue Räume anlegen.";
@@ -122,6 +127,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     }
 
     public String raumLoeschen(Rolle rolle, String raumName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht den Raum '" + raumName + "' zu löschen.");
         // Sicherheitsprüfung -> nur admins
         if (rolle != Rolle.ADMIN) {
             return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Räume löschen.";
@@ -135,6 +141,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     }
 
     public String geraetHinzufuegen(Rolle rolle, String raumName, String geraetTyp, String geraetName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht das Gerät '" + geraetName + "' (" + geraetTyp + ") im Raum '" + raumName + "' zu installieren.");
         // Sicherheitsprüfung -> nur admins
         if (rolle != Rolle.ADMIN) {
             return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte installieren.";
@@ -157,6 +164,12 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             case "Jalousie", "jalousie":
                 neuesGeraet = new shared.Jalousie(geraetName);
                 break;
+            case "Thermometer", "thermometer":
+                neuesGeraet = new shared.Thermometer(geraetName);
+                break;
+            case "Rauchmelder", "rauchmelder":
+                neuesGeraet = new shared.Rauchmelder(geraetName);
+                break;
             default:
                 return "Fehler: Unbekannter Gerätetyp. Erlaubt sind: Heizung o. heizung, Licht o. licht, Jalousie o. jalousie.";
         }
@@ -170,6 +183,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     }
 
     public String geraetLoeschen(Rolle rolle, String raumName, String geraetName) throws RemoteException {
+        ServerLogger.log(rolle, "Versucht das Gerät '" + geraetName + "' im Raum '" + raumName + "' zu entfernen.");
         // Sicherheitsprüfung -> nur admins
         if (rolle != Rolle.ADMIN) {
             return "Sicherheits-Fehler: Zugriff verweigert! Nur Admins dürfen Geräte entfernen.";
@@ -180,7 +194,7 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             return "Fehler: Der Raum '" + raumName + "' existiert nicht.";
         }
 
-        // Entfernt das Gerät anhand des Namens (Groß-/Kleinschreibung ignorieren)
+        // entfernt Gerät anhand des Namens (case insensitive)
         boolean entfernt = raum.getGeraete().removeIf(g -> g.getName().equalsIgnoreCase(geraetName));
         
         if (entfernt) {
@@ -191,6 +205,12 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
     }
 
     public String befehlAusfuehren(Rolle rolle, String raumName, String geraetName, String befehl, String wert) throws RemoteException {
+        if (befehl.equals("set")) {
+            ServerLogger.log(rolle, "Versucht '" + geraetName + "' in '" + raumName + "' auf den Wert '" + wert + "' zu setzen.");
+        } else {
+            ServerLogger.log(rolle, "Versucht '" + geraetName + "' in '" + raumName + "' zu schalten (Befehl: " + befehl + ").");
+        }
+        
         Raum raum = meinGebaeude.getRaum(raumName);
         if (raum == null) {
             return "Fehler: Raum '" + raumName + "' nicht gefunden.";
@@ -219,6 +239,9 @@ public class SmartHomeServer extends UnicastRemoteObject implements SmartHomeSer
             } else {
                 return "Fehler: Das Gerät '" + geraetName + "' besitzt keinen Schalter.";
             }
+        }
+        else if (zielGeraet instanceof shared.SensorDevice) {
+            return "Sicherheits-Fehler: Das Gerät '" + zielGeraet.getName() + "' ist ein Sensor. Sensoren messen nur Daten und können nicht manuell gesteuert werden!";
         }
         else if (zielGeraet instanceof HeizungsThermostat) {
             if (befehl.equals("set")) {
